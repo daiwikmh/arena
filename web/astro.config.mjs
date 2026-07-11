@@ -13,5 +13,11 @@ export default defineConfig({
 
   adapter: node({
     mode: 'standalone'
-  })
+  }),
+
+  vite: {
+    server: {
+      allowedHosts: ['.trycloudflare.com']
+    }
+  }
 });

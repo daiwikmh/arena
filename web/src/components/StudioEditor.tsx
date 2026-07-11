@@ -24,6 +24,7 @@ import {
 import LeftSidebar from './studio/LeftSidebar'
 import { type RailView } from './studio/IconRail'
 import SidebarPanels from './studio/SidebarPanels'
+import BackgroundPixelStars from './ui/background-pixel-stars'
 import PreviewPlayer from './studio/PreviewPlayer'
 import Timeline from './studio/Timeline'
 import DirectorChat from './studio/DirectorChat'
@@ -100,6 +101,11 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 
 	const patchShot = useCallback((id: string, patch: Partial<Shot>) => {
 		setShots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+	}, [])
+
+	const handleSelectRailView = useCallback((view: RailView) => {
+		setRailView(view)
+		setViewingLanding(false)
 	}, [])
 
 	const handleAddShot = useCallback(() => {
@@ -608,11 +614,15 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 			<div style={{ position: 'fixed', inset: 0, background: colors.surface0, display: 'flex', color: colors.text, fontFamily: font.sans }}>
 				<LeftSidebar
 					active={railView}
-					onSelect={setRailView}
+					onSelect={handleSelectRailView}
+					onHomeClick={() => setViewingLanding(true)}
 				/>
-				
-				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: colors.surface0, padding: '20px 40px 40px' }}>
-					
+
+				<div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'transparent', padding: '20px 40px 40px', position: 'relative', overflowX: 'hidden', zIndex: 1 }}>
+					<div style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+						<BackgroundPixelStars />
+					</div>
+
 					{/* TOP HEADER BAR */}
 					<header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 50, flexWrap: 'wrap', gap: 12 }}>
 						{/* Promotion Banner */}
@@ -865,7 +875,8 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 		<div style={{ position: 'fixed', inset: 0, background: colors.surface0, display: 'flex', color: colors.text }}>
 			<LeftSidebar
 				active={railView}
-				onSelect={setRailView}
+				onSelect={handleSelectRailView}
+				onHomeClick={() => setViewingLanding(true)}
 			/>
 
 			<SidebarPanels

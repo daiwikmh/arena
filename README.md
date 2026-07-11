@@ -13,6 +13,7 @@
 [![Engine: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Model: Nano Banana 2 Lite](https://img.shields.io/badge/LLM-Nano%20Banana%202-yellow)](https://google.com)
 [![Video Model: Omni Flash](https://img.shields.io/badge/VLM-Omni%20Flash-blue)](https://google.com)
+[![Live: Gemini Live API](https://img.shields.io/badge/Live-Gemini%20Live%20API-orange)](https://google.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#-license)
 
 [**Open Studio**](http://localhost:4321) · [**Backend Specs**](http://localhost:8000/docs) · [**Astro Workspace**](web/)
@@ -53,6 +54,10 @@ graph TD
   B -->|"Text Review Critic"| TC["Typographic Critic<br/>(Pillow + FontTools)"]
   
   B -->|"Local File Cache"| C[("Scene Cache<br/>(Local JSON Indexes)")]
+
+  F -->|"Camera + Mic WebSocket"| L["Live Relay<br/>(engine/live_api.py)"]
+  L <-->|"Bidirectional Stream"| GL["Gemini Live API<br/>(Voice + Vision, Tool-Calling)"]
+  GL -->|"apply_effect(description)"| NB
 ```
 
 **The Generation Pipeline:**
@@ -63,6 +68,7 @@ graph TD
 | **Motion Generator** | **Omni Flash** | Animates stills into fluid 30 FPS video slices | **$0.0175 / second** |
 | **Typographic Critic** | Heuristic parser | Checks bounding boxes, font heights, and contrast margins | **Deterministic** |
 | **Vision Critic** | In-engine VLM | Inspects generated clips for physics glitches and lighting tears | **Self-Correction** |
+| **Live Director** | **Gemini Live API** | Listens/watches a live camera+mic feed and triggers keyframe generation by voice, mid-conversation | **Tool-Call Triggered** |
 
 ---
 

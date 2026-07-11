@@ -13,7 +13,7 @@ from google.genai import types
 load_dotenv()
 
 ModelRole = Literal[
-    "scene", "scene_style_locked", "hero", "plan", "critic", "repair_hard", "animate"
+    "scene", "scene_style_locked", "hero", "plan", "critic", "repair_hard", "animate", "live"
 ]
 
 MODEL_ROUTING: dict[ModelRole, str] = {
@@ -24,6 +24,7 @@ MODEL_ROUTING: dict[ModelRole, str] = {
     "critic": "gemini-3-flash",
     "repair_hard": "gemini-3.5-flash",
     "animate": "gemini-omni-flash-preview",
+    "live": "gemini-3.1-flash-live-preview",
 }
 
 VideoTask = Literal["text_to_video", "image_to_video", "reference_to_video", "edit"]

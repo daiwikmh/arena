@@ -1,0 +1,26 @@
+---
+import LiveCamera from '../../components/LiveCamera.tsx'
+
+const { project } = Astro.params
+---
+
+<html lang="en" class="dark">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/png" href="/logo.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<title>Arena Live — {project}</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #09090b;
+			}
+		</style>
+	</head>
+	<body>
+		<LiveCamera client:only="react" projectId={project as string} />
+	</body>
+</html>

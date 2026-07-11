@@ -246,6 +246,14 @@ export function liveWebSocketUrl(campaignId: string): string {
 	return `${baseUrl().replace(/^http/, 'ws')}/campaigns/${campaignId}/live`
 }
 
+export function liveSessionWebSocketUrl(projectId: string, role: 'camera' | 'control'): string {
+	return `${baseUrl().replace(/^http/, 'ws')}/live/${encodeURIComponent(projectId)}/session?role=${role}`
+}
+
+export function liveFrameUrl(projectId: string, frameId: string): string {
+	return `${baseUrl()}/live/${encodeURIComponent(projectId)}/frame/${encodeURIComponent(frameId)}`
+}
+
 export function syncWebSocketBaseUrl(): string {
 	return `${baseUrl().replace(/^http/, 'ws')}/sync`
 }

@@ -27,9 +27,10 @@ import type { RailView } from './IconRail'
 interface LeftSidebarProps {
 	active: RailView
 	onSelect: (view: RailView) => void
+	onHomeClick?: () => void
 }
 
-export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
+export default function LeftSidebar({ active, onSelect, onHomeClick }: LeftSidebarProps) {
 	const [collapsed, setCollapsed] = useState(false)
 
 	const menuItems = [
@@ -74,6 +75,14 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 					transition: 'width 0.2s ease-in-out'
 				}}
 			>
+				<img
+					src="/logo.png"
+					alt="Arena"
+					onClick={onHomeClick}
+					title="Go to Landing Dashboard"
+					style={{ ...collapsedLogoStyle, cursor: onHomeClick ? 'pointer' : 'default' }}
+				/>
+
 				<button
 					onClick={() => setCollapsed(false)}
 					style={collapsedIconHeaderStyle}
@@ -88,7 +97,13 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 						return (
 							<button
 								key={id}
-								onClick={() => onSelect(id)}
+								onClick={() => {
+									if (label === 'Home') {
+										onHomeClick?.()
+									} else {
+										onSelect(id)
+									}
+								}}
 								title={label}
 								style={{
 									...miniIconBtnStyle,
@@ -132,11 +147,13 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 		>
 			{/* Logo and collapse */}
 			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingLeft: 6 }}>
-				<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-					<div style={logoBadgeStyle}>
-						<span style={{ fontSize: 13, fontWeight: 800, color: colors.white }}>A</span>
-					</div>
-					<span style={{ fontSize: 16, fontWeight: 700, tracking: '-0.02em', color: colors.text }}>
+				<div
+					onClick={onHomeClick}
+					style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+					title="Go to Landing Dashboard"
+				>
+					<img src="/logo.png" alt="Arena" style={logoBadgeStyle} />
+					<span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: colors.text }}>
 						Arena<sup style={{ fontSize: 8, fontWeight: 500, opacity: 0.7 }}>TM</sup>
 					</span>
 				</div>
@@ -157,7 +174,13 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 					return (
 						<button
 							key={id}
-							onClick={() => onSelect(id)}
+							onClick={() => {
+								if (label === 'Home') {
+									onHomeClick?.()
+								} else {
+									onSelect(id)
+								}
+							}}
 							style={{
 								...navRowStyle,
 								background: isActive ? colors.surface3 : 'transparent',
@@ -187,7 +210,7 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 
 			{/* Secondary Active Tool Sections (All local tools patched) */}
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-				<span style={{ fontSize: 9.5, fontWeight: 600, color: colors.textFaint, textTransform: 'uppercase', tracking: '0.08em', paddingLeft: 10, marginBottom: 6 }}>
+				<span style={{ fontSize: 9.5, fontWeight: 600, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 10, marginBottom: 6 }}>
 					Interactive Tools
 				</span>
 
@@ -219,7 +242,7 @@ export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 					<button style={bottomIconStyle} title="Documentation">
 						<GraduationCap size={13} />
 					</button>
-					<button style={bottomIconStyle} title="19 Unread Messages" style={{ ...bottomIconStyle, position: 'relative' }}>
+					<button title="19 Unread Messages" style={{ ...bottomIconStyle, position: 'relative' }}>
 						<Bell size={13} />
 						<span style={badgeStyle}>19</span>
 					</button>
@@ -239,10 +262,15 @@ const logoBadgeStyle: CSSProperties = {
 	width: 22,
 	height: 22,
 	borderRadius: 5,
-	background: 'linear-gradient(135deg, #EC4899, #D946EF)',
-	display: 'grid',
-	placeItems: 'center',
+	objectFit: 'contain',
 	flex: 'none'
+}
+
+const collapsedLogoStyle: CSSProperties = {
+	width: 24,
+	height: 24,
+	objectFit: 'contain',
+	marginBottom: 10,
 }
 
 const collapsedIconHeaderStyle: CSSProperties = {
@@ -320,8 +348,8 @@ const badgeStyle: CSSProperties = {
 	position: 'absolute',
 	top: -2,
 	right: -2,
-	background: '#EC4899',
-	color: '#FAFAFA',
+	background: colors.critical,
+	color: colors.white,
 	fontSize: 7.5,
 	fontWeight: 800,
 	borderRadius: radius.pill,

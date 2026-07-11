@@ -22,6 +22,7 @@ from engine.models import ModelRole
 from engine.planner import plan as run_planner
 from engine.prompt import DEFAULT_TEMPLATE_VERSION, compile_prompt
 from engine.repair import RepairPlan, plan_repair, repair_draft
+from engine.live_api import router as live_router
 from engine.shots_api import router as shots_router
 
 _canvas_sync = WebsocketServer(auto_clean_rooms=False)
@@ -37,7 +38,7 @@ app = FastAPI(title="Presscheck engine", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4321", "http://localhost:4322", "http://127.0.0.1:4321", "http://127.0.0.1:4322"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+):(4321|4322)|https://[a-zA-Z0-9.-]+\.trycloudflare\.com",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -46,6 +47,7 @@ _cache = SceneCache()
 
 app.mount("/sync", ASGIServer(_canvas_sync))
 app.include_router(shots_router)
+app.include_router(live_router)
 
 
 def _cell_key(locale_code: str, format_id: str) -> str:

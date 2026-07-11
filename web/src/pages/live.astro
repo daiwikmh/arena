@@ -1,0 +1,28 @@
+---
+---
+
+<html lang="en" class="dark">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/png" href="/logo.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Arena Live</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				background: #09090b;
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			function newProjectId(): string {
+				if ('randomUUID' in crypto) return crypto.randomUUID()
+				return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+			}
+			window.location.replace(`/live/${newProjectId()}?role=control`)
+		</script>
+	</body>
+</html>

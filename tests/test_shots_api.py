@@ -249,3 +249,59 @@ def test_clip_video_404s_before_generation(client, fake_generator):
     client.post(f"/projects/proj-1/shots/{shot_id}/keyframe")
     r = client.get(f"/projects/proj-1/shots/{shot_id}/clip/video")
     assert r.status_code == 404
+
+
+def test_upload_asset_then_fetch_it_back(client):
+    r = client.post(
+        "/projects/proj-1/assets",
+        files={"file": ("reference.png", b"fake-png-bytes", "image/png")},
+    )
+    assert r.status_code == 200
+    asset = r.json()["asset"]
+    assert asset["filename"] == "reference.png"
+    assert asset["mime_type"] == "image/png"
+    assert asset["url"] == f"/projects/proj-1/assets/{asset['id']}"
+
+    r = client.get(asset["url"])
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/png"
+    assert r.content == b"fake-png-bytes"
+
+    summary = client.get("/projects/proj-1").json()
+    assert len(summary["assets"]) == 1
+    assert summary["assets"][0]["id"] == asset["id"]
+
+
+def test_uploading_the_same_bytes_twice_reuses_the_asset_id(client):
+    first = client.post(
+        "/projects/proj-1/assets",
+        files={"file": ("a.png", b"identical-bytes", "image/png")},
+    ).json()["asset"]
+    second = client.post(
+        "/projects/proj-1/assets",
+        files={"file": ("b.png", b"identical-bytes", "image/png")},
+    ).json()["asset"]
+
+    assert first["id"] == second["id"]
+    summary = client.get("/projects/proj-1").json()
+    assert len(summary["assets"]) == 1
+
+
+def test_upload_rejects_empty_file(client):
+    r = client.post("/projects/proj-1/assets", files={"file": ("empty.png", b"", "image/png")})
+    assert r.status_code == 400
+
+
+def test_get_asset_404s_for_unknown_id(client):
+    client.get("/projects/proj-1")
+    r = client.get("/projects/proj-1/assets/not-a-real-asset")
+    assert r.status_code == 404
+
+
+def test_assets_are_scoped_per_project(client):
+    client.post(
+        "/projects/proj-1/assets",
+        files={"file": ("a.png", b"proj-1-bytes", "image/png")},
+    )
+    summary_proj_2 = client.get("/projects/proj-2").json()
+    assert summary_proj_2["assets"] == []

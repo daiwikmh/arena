@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -44,10 +44,19 @@ class ShotState:
 
 
 @dataclass
+class UploadedAsset:
+    id: str
+    filename: str
+    mime_type: str
+
+
+@dataclass
 class ProjectState:
     id: str
     shots: dict[str, ShotState] = field(default_factory=dict)
     shot_order: list[str] = field(default_factory=list)
+    assets: dict[str, UploadedAsset] = field(default_factory=dict)
+    asset_order: list[str] = field(default_factory=list)
 
 
 _PROJECTS: dict[str, ProjectState] = {}
@@ -73,10 +82,18 @@ class ShotSummary(BaseModel):
     clip_draft_id: str | None
 
 
+class AssetSummary(BaseModel):
+    id: str
+    filename: str
+    mime_type: str
+    url: str
+
+
 class ProjectSummary(BaseModel):
     id: str
     shot_ids: list[str]
     shots: list[ShotSummary]
+    assets: list[AssetSummary]
 
 
 def _shot_summary(shot: ShotState) -> ShotSummary:
@@ -90,6 +107,15 @@ def _shot_summary(shot: ShotState) -> ShotSummary:
     )
 
 
+def _asset_summary(project_id: str, asset: UploadedAsset) -> AssetSummary:
+    return AssetSummary(
+        id=asset.id,
+        filename=asset.filename,
+        mime_type=asset.mime_type,
+        url=f"/projects/{project_id}/assets/{asset.id}",
+    )
+
+
 @router.get("/projects/{project_id}", response_model=ProjectSummary)
 def get_project(project_id: str) -> ProjectSummary:
     project = _get_or_create_project(project_id)
@@ -97,7 +123,46 @@ def get_project(project_id: str) -> ProjectSummary:
         id=project.id,
         shot_ids=list(project.shot_order),
         shots=[_shot_summary(project.shots[sid]) for sid in project.shot_order],
+        assets=[_asset_summary(project_id, project.assets[aid]) for aid in project.asset_order],
     )
+
+
+class UploadAssetResponse(BaseModel):
+    asset: AssetSummary
+
+
+@router.post("/projects/{project_id}/assets", response_model=UploadAssetResponse)
+async def upload_asset(project_id: str, file: UploadFile = File(...)) -> UploadAssetResponse:
+    project = _get_or_create_project(project_id)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="uploaded file is empty")
+
+    mime_type = file.content_type or "application/octet-stream"
+    asset_id = hashlib.sha256(data).hexdigest()
+
+    if not _cache.has(asset_id):
+        _cache.put(asset_id, data, mime_type)
+
+    if asset_id not in project.assets:
+        project.assets[asset_id] = UploadedAsset(
+            id=asset_id, filename=file.filename or asset_id, mime_type=mime_type
+        )
+        project.asset_order.append(asset_id)
+
+    return UploadAssetResponse(asset=_asset_summary(project_id, project.assets[asset_id]))
+
+
+@router.get("/projects/{project_id}/assets/{asset_id}")
+def get_asset(project_id: str, asset_id: str) -> Response:
+    project = _get_or_create_project(project_id)
+    asset = project.assets.get(asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id!r} in project {project_id!r}")
+    cached = _cache.get(asset_id)
+    if cached is None:
+        raise HTTPException(status_code=404, detail=f"asset {asset_id!r} has no cached content")
+    return Response(content=cached.image_bytes, media_type=cached.mime_type)
 
 
 class CreateShotResponse(BaseModel):

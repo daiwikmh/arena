@@ -1,12 +1,9 @@
 [project]
-name = "presscheck"
+name = "arena"
 version = "0.1.0"
-description = "Agentic poster and asset localization pipeline"
+description = "Conversational video-direction engine — NB2 Lite keyframes gate Omni Flash animation"
 requires-python = ">=3.12"
 dependencies = [
-    "pipecat-ai[google,silero,webrtc]>=1.4.0",
-    "pipecat-ai-prebuilt>=0.1.0",
-    "aiohttp>=3.10.0",
     "fastapi>=0.115.6,<0.117.0",
     "uvicorn>=0.32.0,<1.0.0",
     "python-dotenv>=1.0.1,<2.0.0",
@@ -18,6 +15,7 @@ dependencies = [
     "pycrdt>=0.14.1",
     "websockets>=16.0",
     "pycrdt-websocket>=0.16.4",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]

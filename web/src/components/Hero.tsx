@@ -93,8 +93,11 @@ export default function Hero() {
       </div>
 
       <header className="fixed top-0 inset-x-0 z-50 px-10 py-8 flex justify-between items-center">
-        <div className="text-[17px] font-semibold tracking-tight">
-          Arena<sup>TM</sup>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="" className="h-6 w-6" />
+          <span className="text-[17px] font-semibold tracking-tight">
+            Arena<sup>TM</sup>
+          </span>
         </div>
 
         <nav className="liquid-glass rounded-full px-2 py-2 flex items-center gap-1">

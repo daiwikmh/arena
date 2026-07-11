@@ -1,4 +1,4 @@
-import { baseUrl, request } from './api'
+import { ApiError, baseUrl, request } from './api'
 
 export type CameraMovement =
 	| 'static'
@@ -36,12 +36,22 @@ export interface ShotSummary {
 	spec: ShotSpec
 	has_keyframe: boolean
 	draft_id: string | null
+	has_clip: boolean
+	clip_draft_id: string | null
+}
+
+export interface AssetSummary {
+	id: string
+	filename: string
+	mime_type: string
+	url: string
 }
 
 export interface ProjectSummary {
 	id: string
 	shot_ids: string[]
 	shots: ShotSummary[]
+	assets: AssetSummary[]
 }
 
 export interface CreateShotResponse {
@@ -55,6 +65,16 @@ export interface KeyframeResponse {
 	draft_id: string | null
 	error: string | null
 	cost_usd: number
+}
+
+export interface ClipResponse {
+	shot_id: string
+	status: 'generated' | 'cached' | 'error'
+	draft_id: string | null
+	error: string | null
+	cost_usd: number
+	delivery: 'bytes' | 'uri' | 'none'
+	video_uri: string | null
 }
 
 export function defaultShotSpec(text: string): ShotSpec {
@@ -91,4 +111,33 @@ export async function generateKeyframe(projectId: string, shotId: string): Promi
 
 export function shotKeyframeImageUrl(projectId: string, shotId: string): string {
 	return `${baseUrl()}/projects/${projectId}/shots/${shotId}/keyframe/image`
+}
+
+export async function generateClip(projectId: string, shotId: string): Promise<ClipResponse> {
+	return request(`/projects/${projectId}/shots/${shotId}/clip`, { method: 'POST' })
+}
+
+export function shotClipVideoUrl(projectId: string, shotId: string): string {
+	return `${baseUrl()}/projects/${projectId}/shots/${shotId}/clip/video`
+}
+
+export async function uploadAsset(projectId: string, file: File): Promise<AssetSummary> {
+	const form = new FormData()
+	form.append('file', file)
+	const res = await fetch(`${baseUrl()}/projects/${projectId}/assets`, {
+		method: 'POST',
+		body: form,
+	})
+	if (!res.ok) {
+		let detail = res.statusText
+		try {
+			const body = await res.json()
+			detail = body.detail ?? detail
+		} catch {
+			// response wasn't JSON; keep statusText
+		}
+		throw new ApiError(res.status, `${res.status} /projects/${projectId}/assets: ${detail}`)
+	}
+	const body: { asset: AssetSummary } = await res.json()
+	return body.asset
 }

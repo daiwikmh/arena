@@ -1,4 +1,5 @@
 import { Captions, Folder, LayoutGrid, Mic, Music, Type } from 'lucide-react'
+import { colors, radius } from './theme'
 
 export type RailView = 'media' | 'storyboard' | 'music' | 'captions' | 'voice' | 'text'
 
@@ -21,13 +22,16 @@ export default function IconRail({ active, onSelect }: IconRailProps) {
 		<nav
 			style={{
 				width: 56,
-				background: '#14171A',
-				borderRight: '1px solid #2C3238',
+				flex: 'none',
+				background: colors.surface1,
+				borderRight: `1px solid ${colors.border}`,
+				boxShadow: 'inset -1px 0 0 rgba(0,0,0,.3)',
 				display: 'flex',
 				flexDirection: 'column',
 				alignItems: 'center',
 				gap: 4,
 				padding: '12px 0',
+				zIndex: 20,
 			}}
 		>
 			{ITEMS.map(({ view, label, Icon }) => {
@@ -42,11 +46,18 @@ export default function IconRail({ active, onSelect }: IconRailProps) {
 							height: 36,
 							display: 'grid',
 							placeItems: 'center',
-							border: 0,
-							borderRadius: 6,
-							background: isActive ? '#1F242A' : 'transparent',
-							color: isActive ? '#E6E9EC' : '#6B727A',
+							border: isActive ? `1px solid ${colors.borderStrong}` : '1px solid transparent',
+							borderRadius: radius.md,
+							background: isActive ? colors.surface3 : 'transparent',
+							color: isActive ? colors.accent : colors.textFaint,
 							cursor: 'pointer',
+							transition: 'background .12s, color .12s, border-color .12s',
+						}}
+						onMouseEnter={(e) => {
+							if (!isActive) e.currentTarget.style.color = colors.textDim
+						}}
+						onMouseLeave={(e) => {
+							if (!isActive) e.currentTarget.style.color = colors.textFaint
 						}}
 					>
 						<Icon size={18} strokeWidth={1.6} />

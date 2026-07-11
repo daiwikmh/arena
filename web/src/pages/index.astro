@@ -6,11 +6,24 @@ import '../styles/global.css'
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="icon" type="image/png" href="/logo.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="generator" content={Astro.generator} />
 		<title>Arena — Direct the shot, skip the timeline</title>
+		<meta
+			name="description"
+			content="Describe a shot, approve its frame for pennies, and watch it come to life. Arena chains Nano Banana 2 Lite into Gemini Omni Flash for conversational, multi-shot video direction."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content="Arena — Direct the shot, skip the timeline" />
+		<meta
+			property="og:description"
+			content="Describe a shot, approve its frame for pennies, and watch it come to life. Conversational, multi-shot video direction."
+		/>
+		<meta property="og:image" content="/logo.png" />
+		<meta name="twitter:card" content="summary" />
+		<meta name="twitter:title" content="Arena — Direct the shot, skip the timeline" />
+		<meta name="twitter:image" content="/logo.png" />
 	</head>
 	<body>
 		<Hero client:load />

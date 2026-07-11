@@ -1,78 +1,68 @@
-import { ArrowUp } from 'lucide-react'
-import { useState } from 'react'
-import type { DirectorMessage, Shot } from './types'
+import type { DirectorMessage, GenerationOptions, Shot } from './types'
+import { colors, font, radius } from './theme'
+import Composer from './Composer'
+import MessageList from './MessageList'
 
 interface DirectorChatProps {
 	messages: DirectorMessage[]
 	activeShot: Shot | null
 	busy: boolean
+	options: GenerationOptions
+	onOptionsChange: (options: GenerationOptions) => void
 	onSend: (text: string) => void
+	onUpload: (file: File) => void
 }
 
-export default function DirectorChat({ messages, activeShot, busy, onSend }: DirectorChatProps) {
-	const [value, setValue] = useState('')
-
-	const submit = () => {
-		if (busy || !value.trim()) return
-		onSend(value.trim())
-		setValue('')
-	}
-
+export default function DirectorChat({
+	messages,
+	activeShot,
+	busy,
+	options,
+	onOptionsChange,
+	onSend,
+	onUpload,
+}: DirectorChatProps) {
 	const turnsLeft = activeShot ? activeShot.maxTurns - activeShot.turnsUsed : null
 
 	return (
 		<aside
 			style={{
-				width: 320,
-				borderLeft: '1px solid #2C3238',
-				background: '#14171A',
+				width: 340,
+				flex: 'none',
+				borderLeft: `1px solid ${colors.border}`,
+				background: colors.surface1,
 				display: 'flex',
 				flexDirection: 'column',
+				zIndex: 20,
 			}}
 		>
-			<div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-				{messages.map((m) => (
-					<div
-						key={m.id}
-						style={{
-							display: 'flex',
-							gap: 8,
-							alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-							maxWidth: '92%',
-						}}
-					>
-						{m.role === 'director' && (
-							<span style={{ width: 2, background: '#34BEDC', borderRadius: 1, flex: 'none' }} />
-						)}
-						<p
-							style={{
-								margin: 0,
-								fontSize: 13.5,
-								lineHeight: 1.5,
-								color: m.role === 'director' ? '#E6E9EC' : '#9AA1A9',
-							}}
-						>
-							{m.text}
-						</p>
-					</div>
-				))}
-				{busy && (
-					<div style={{ display: 'flex', gap: 8 }}>
-						<span style={{ width: 2, background: '#34BEDC', borderRadius: 1, flex: 'none' }} />
-						<p style={{ margin: 0, fontSize: 13.5, color: '#6B727A' }}>Directing…</p>
-					</div>
-				)}
+			<div
+				style={{
+					padding: '10px 14px',
+					borderBottom: `1px solid ${colors.border}`,
+					background: colors.surface2,
+					fontSize: 10.5,
+					letterSpacing: '0.1em',
+					textTransform: 'uppercase',
+					color: colors.textFaint,
+					fontFamily: font.mono,
+				}}
+			>
+				Director
 			</div>
+
+			<MessageList messages={messages} busy={busy} style={{ flex: 1, overflowY: 'auto', padding: 16 }} />
 
 			{activeShot && (
 				<div
 					style={{
 						margin: '0 14px 10px',
-						padding: '6px 10px',
-						borderRadius: 4,
-						background: '#1F242A',
+						padding: '7px 11px',
+						borderRadius: radius.md,
+						border: `1px solid ${colors.border}`,
+						background: colors.surface2,
 						fontSize: 11,
-						color: turnsLeft === 0 ? '#D99A2B' : '#6B727A',
+						color: turnsLeft === 0 ? colors.warning : colors.textFaint,
 						display: 'flex',
 						justifyContent: 'space-between',
 					}}
@@ -86,61 +76,15 @@ export default function DirectorChat({ messages, activeShot, busy, onSend }: Dir
 				</div>
 			)}
 
-			<div style={{ padding: 14, borderTop: '1px solid #1F242A' }}>
-				<div
-					style={{
-						display: 'flex',
-						alignItems: 'flex-end',
-						gap: 8,
-						background: '#1F242A',
-						border: '1px solid #2C3238',
-						borderRadius: 8,
-						padding: 10,
-					}}
-				>
-					<textarea
-						value={value}
-						onChange={(e) => setValue(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter' && !e.shiftKey) {
-								e.preventDefault()
-								submit()
-							}
-						}}
-						disabled={busy}
-						rows={2}
-						placeholder="What story do you want to tell? I'll help you make shots, swaps, and cuts…"
-						style={{
-							flex: 1,
-							resize: 'none',
-							border: 0,
-							background: 'transparent',
-							color: '#E6E9EC',
-							outline: 'none',
-							fontSize: 13,
-							fontFamily: 'inherit',
-							lineHeight: 1.4,
-						}}
-					/>
-					<button
-						onClick={submit}
-						disabled={busy || !value.trim()}
-						style={{
-							width: 28,
-							height: 28,
-							flex: 'none',
-							display: 'grid',
-							placeItems: 'center',
-							border: 0,
-							borderRadius: '50%',
-							background: busy || !value.trim() ? '#2C3238' : '#E6E9EC',
-							color: busy || !value.trim() ? '#6B727A' : '#14171C',
-							cursor: busy || !value.trim() ? 'default' : 'pointer',
-						}}
-					>
-						<ArrowUp size={14} strokeWidth={2} />
-					</button>
-				</div>
+			<div style={{ padding: 14, borderTop: `1px solid ${colors.border}` }}>
+				<Composer
+					variant="sidebar"
+					busy={busy}
+					options={options}
+					onOptionsChange={onOptionsChange}
+					onSend={onSend}
+					onUpload={onUpload}
+				/>
 			</div>
 		</aside>
 	)

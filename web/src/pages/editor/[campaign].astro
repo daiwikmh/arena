@@ -1,0 +1,24 @@
+---
+import Editor from '../../components/Editor.tsx'
+
+const { campaign } = Astro.params
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Presscheck — {campaign}</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<Editor client:only="react" campaignId={campaign as string} />
+	</body>
+</html>

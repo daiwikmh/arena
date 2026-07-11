@@ -1,0 +1,48 @@
+from engine.ir import ObjectRef, SceneSpec
+
+SCENES: list[SceneSpec] = [
+    SceneSpec(
+        subject="cold brew bottle on a stone counter",
+        setting="minimalist kitchen, morning light through a window",
+        time_of_day="dawn",
+        palette=["#1A2B3C", "#EDEEF0"],
+        mood="calm, unhurried",
+        lens_mm=50,
+        lighting="soft",
+        excludes=["text", "people"],
+        object_refs=[ObjectRef(asset_id="ast_bottle01", label="product bottle")],
+    ),
+    SceneSpec(
+        subject="running shoe mid-stride, motion blur on the track",
+        setting="outdoor athletics track at dusk, stadium lights warming up",
+        time_of_day="dusk",
+        palette=["#0F1115", "#FF5A36", "#F4F1EA"],
+        mood="kinetic, determined",
+        lens_mm=85,
+        lighting="hard",
+        excludes=[],
+        object_refs=[ObjectRef(asset_id="ast_shoe07", label="running shoe")],
+    ),
+    SceneSpec(
+        subject="abstract data flow of light trails",
+        setting="dark studio void, long-exposure light painting",
+        time_of_day="night",
+        palette=["#050608", "#00A3C4", "#8A5CF6"],
+        mood="precise, futuristic",
+        lens_mm=35,
+        lighting="backlit",
+        excludes=["text", "logos", "people", "faces"],
+        object_refs=[],
+    ),
+    SceneSpec(
+        subject="skincare jar on a linen cloth",
+        setting="sunlit bathroom shelf, steam faintly visible",
+        time_of_day="day",
+        palette=["#F7F3EE", "#C9A987"],
+        mood="clean, restorative",
+        lens_mm=100,
+        lighting="diffused",
+        excludes=["people"],
+        object_refs=[ObjectRef(asset_id="ast_jar03", label="skincare jar")],
+    ),
+]

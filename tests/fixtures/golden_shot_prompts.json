@@ -1,0 +1,38 @@
+{
+  "handheld": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with a natural, slightly off-center composition. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "pan_left": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject weighted toward the right of frame, open space on the left for the pan to reveal. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "pan_right": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject weighted toward the left of frame, open space on the right for the pan to reveal. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "static": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with a centered, balanced composition. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "tilt_down": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject weighted toward the upper half of frame, open space below for the tilt to reveal. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "tilt_up": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject weighted toward the lower half of frame, open space above for the tilt to reveal. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "tracking": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject centered with even space on both sides for lateral movement. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "zoom_in": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject small in frame with generous surrounding context, room to move closer. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  },
+  "zoom_out": {
+    "template_version": "shot-v1",
+    "text": "a glass marble at the top of a wooden chain-reaction track, a sunlit workshop table, close-up. Time of day: day. Mood: playful, precise. Lighting: soft. Palette: #8A5A32, #EDEEF0. This is the opening frame of a 6-second shot where the marble is released and begins rolling down the track. Compose with the subject large and close in frame, room to pull back. Exclude: text, people. Keep the referenced glass marble visually consistent with the provided reference images. Still photography framing, no motion blur, no text, no logos, no watermarks."
+  }
+}

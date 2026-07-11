@@ -1,0 +1,25 @@
+---
+import StudioEditor from '../../components/StudioEditor.tsx'
+
+const { project } = Astro.params
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Shotlist — {project}</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #0b0d10;
+			}
+		</style>
+	</head>
+	<body>
+		<StudioEditor client:only="react" projectId={project as string} />
+	</body>
+</html>

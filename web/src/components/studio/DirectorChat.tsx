@@ -1,4 +1,5 @@
 import { Sparkles } from 'lucide-react'
+import { useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { DirectorMessage, GenerationOptions, Shot } from './types'
 import { colors, font, radius, shadow } from './theme'
 import Composer from './Composer'
@@ -14,6 +15,10 @@ interface DirectorChatProps {
 	onUpload: (file: File) => void
 }
 
+const MIN_WIDTH = 280
+const MAX_WIDTH = 560
+const DEFAULT_WIDTH = 340
+
 export default function DirectorChat({
 	messages,
 	activeShot,
@@ -24,20 +29,56 @@ export default function DirectorChat({
 	onUpload,
 }: DirectorChatProps) {
 	const turnsLeft = activeShot ? activeShot.maxTurns - activeShot.turnsUsed : null
+	const [width, setWidth] = useState(DEFAULT_WIDTH)
+
+	const beginResize = (e: ReactPointerEvent<HTMLDivElement>) => {
+		e.preventDefault()
+		const el = e.currentTarget
+		el.setPointerCapture(e.pointerId)
+		const startX = e.clientX
+		const startWidth = width
+
+		const onMove = (ev: PointerEvent) => {
+			const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth - (ev.clientX - startX)))
+			setWidth(next)
+		}
+		const onUp = (ev: PointerEvent) => {
+			el.releasePointerCapture(ev.pointerId)
+			el.removeEventListener('pointermove', onMove)
+			el.removeEventListener('pointerup', onUp)
+		}
+		el.addEventListener('pointermove', onMove)
+		el.addEventListener('pointerup', onUp)
+	}
 
 	return (
 		<aside
 			style={{
-				width: 340,
+				width,
 				flex: 'none',
 				borderLeft: `1px solid ${colors.border}`,
 				background: colors.surface1,
 				boxShadow: shadow.bar,
 				display: 'flex',
 				flexDirection: 'column',
+				position: 'relative',
 				zIndex: 20,
 			}}
 		>
+			<div
+				onPointerDown={beginResize}
+				title="Drag to resize"
+				style={{
+					position: 'absolute',
+					top: 0,
+					bottom: 0,
+					left: -3,
+					width: 6,
+					cursor: 'ew-resize',
+					zIndex: 21,
+					touchAction: 'none',
+				}}
+			/>
 			<div
 				style={{
 					display: 'flex',

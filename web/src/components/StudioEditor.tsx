@@ -1,4 +1,4 @@
-import { useCallback, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CanvasRevealEffect } from './ui/canvas-reveal-effect'
 import {
@@ -33,6 +33,7 @@ import Composer from './studio/Composer'
 import MessageList from './studio/MessageList'
 import { classifyIntent, agentReply, detectModel } from './studio/agent'
 import { colors, font, radius, shadow } from './studio/theme'
+import { baseUrl } from '../lib/api'
 import {
 	DEFAULT_GENERATION_OPTIONS,
 	emptyShot,
@@ -48,9 +49,11 @@ import {
 	defaultShotSpec,
 	generateClip,
 	generateKeyframe,
+	getProject,
 	shotClipVideoUrl,
 	shotKeyframeImageUrl,
 	uploadAsset,
+	type AssetSummary,
 } from '../lib/shotsApi'
 
 interface StudioEditorProps {
@@ -78,6 +81,15 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 	const [landingSearchText, setLandingSearchText] = useState('')
 	const [generationOptions, setGenerationOptions] = useState<GenerationOptions>(DEFAULT_GENERATION_OPTIONS)
 	const [spaceCardHovered, setSpaceCardHovered] = useState(false)
+	const [viewingLanding, setViewingLanding] = useState(false)
+	const [assets, setAssets] = useState<AssetSummary[]>([])
+	const [attachedAssetIds, setAttachedAssetIds] = useState<string[]>([])
+
+	useEffect(() => {
+		getProject(projectId)
+			.then((project) => setAssets(project.assets))
+			.catch(() => {})
+	}, [projectId])
 
 	const activeShot = shots.find((s) => s.id === activeShotId) ?? null
 	const inspectorShot = shots.find((s) => s.id === inspectorShotId) ?? null
@@ -97,6 +109,25 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 			return [...prev, shot]
 		})
 	}, [])
+
+	const handleAddShotFromAsset = useCallback((asset: AssetSummary) => {
+		setShots((prev) => {
+			const label = asset.filename.slice(0, 40)
+			const localId = `shot-${prev.length}-${Date.now()}`
+			const fullUrl = asset.url.startsWith('http') ? asset.url : `${baseUrl()}${asset.url}`
+			const shot: Shot = {
+				...emptyShot(prev.length, { startSec: timelineEndSec(prev) }),
+				id: localId,
+				label,
+				status: 'keyframe_ready',
+				keyframeUrl: fullUrl,
+				backendShotId: asset.id
+			}
+			setActiveShotId(localId)
+			addMessage('director', `I've imported your reference "${asset.filename}" as ${shot.label}! Click "Animate Clip" to bring it to life with Omni Flash.`)
+			return [...prev, shot]
+		})
+	}, [addMessage])
 
 	const handleDeleteShot = useCallback(
 		(shotId: string) => {
@@ -213,7 +244,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 	const handleSend = useCallback(
 		async (text: string) => {
 			addMessage('user', text)
-			setEditorStarted(true)
+			setEditorStarted(true); setViewingLanding(false)
 
 			if ((!activeShot || activeShot.status === 'empty') && classifyIntent(text) === 'chat') {
 				addMessage('director', agentReply(text))
@@ -232,11 +263,13 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 					const label = text.slice(0, 40)
 					const localId = activeShot?.id ?? emptyShot(shots.length).id
 
+					const attachedAssets = assets.filter((a) => attachedAssetIds.includes(a.id))
 					const spec = {
 						...defaultShotSpec(text),
 						camera_movement: generationOptions.cameraMovement,
 						aspect_ratio: generationOptions.aspectRatio,
 						duration_sec: generationOptions.durationSec,
+						object_refs: attachedAssets.map((a) => ({ asset_id: a.id, label: a.filename })),
 					}
 
 					setShots((prev) => {
@@ -295,17 +328,19 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 				setBusy(false)
 			}
 		},
-		[activeShot, addMessage, animateClip, generationOptions, patchShot, runClipGeneration, runKeyframeGeneration, shots.length],
+		[activeShot, addMessage, animateClip, assets, attachedAssetIds, generationOptions, patchShot, runClipGeneration, runKeyframeGeneration, shots.length],
 	)
 
 	const handleUpload = useCallback(
 		async (file: File) => {
 			setBusy(true)
 			setHasUploaded(true)
-			setEditorStarted(true)
+			setEditorStarted(true); setViewingLanding(false)
 			try {
 				const asset = await uploadAsset(projectId, file)
-				addMessage('director', `Uploaded "${asset.filename}" — I can use it as a reference for the next shot.`)
+				setAssets((prev) => (prev.some((a) => a.id === asset.id) ? prev : [...prev, asset]))
+				setAttachedAssetIds((prev) => (prev.includes(asset.id) ? prev : [...prev, asset.id]))
+				addMessage('director', `Uploaded "${asset.filename}" — attached it as a reference for the next shot. Toggle it off in the media bin if you don't want it used.`)
 			} catch (err) {
 				addMessage('director', err instanceof Error ? `Upload failed: ${err.message}` : 'Upload failed.')
 			} finally {
@@ -314,6 +349,12 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 		},
 		[addMessage, projectId],
 	)
+
+	const toggleAssetAttachment = useCallback((assetId: string) => {
+		setAttachedAssetIds((prev) =>
+			prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId],
+		)
+	}, [])
 
 	const handleOpenInspector = useCallback((shotId: string) => {
 		setInspectorShotId(shotId)
@@ -562,10 +603,13 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 		boxShadow: shadow.card,
 	}
 
-	if (!started) {
+	if (!started || viewingLanding) {
 		return (
 			<div style={{ position: 'fixed', inset: 0, background: colors.surface0, display: 'flex', color: colors.text, fontFamily: font.sans }}>
-				<LeftSidebar active={railView} onSelect={setRailView} onAddShot={() => { handleAddShot(); setEditorStarted(true); }} />
+				<LeftSidebar
+					active={railView}
+					onSelect={setRailView}
+				/>
 				
 				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: colors.surface0, padding: '20px 40px 40px' }}>
 					
@@ -639,7 +683,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 									key={idx}
 									onClick={() => {
 										setRailView(item.view);
-										setEditorStarted(true);
+										setEditorStarted(true); setViewingLanding(false);
 										if (item.label !== 'All tools') {
 											setLandingSearchText(`Generating a dynamic ${item.label.toLowerCase()} scene...`);
 										}
@@ -708,7 +752,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 									style={addProjectBtnStyle}
 									onClick={() => {
 										handleAddShot();
-										setEditorStarted(true);
+										setEditorStarted(true); setViewingLanding(false);
 									}}
 								>
 									<Plus size={11} />
@@ -719,7 +763,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 								<div
 									style={projectRowStyle}
 									onClick={() => {
-										setEditorStarted(true);
+										setEditorStarted(true); setViewingLanding(false);
 										if (shots.length === 0) handleAddShot();
 									}}
 								>
@@ -802,7 +846,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 								<button
 									onClick={() => {
 										handleAddShot();
-										setEditorStarted(true);
+										setEditorStarted(true); setViewingLanding(false);
 									}}
 									style={sandboxCreateBtnStyle}
 								>
@@ -819,11 +863,17 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 
 	return (
 		<div style={{ position: 'fixed', inset: 0, background: colors.surface0, display: 'flex', color: colors.text }}>
-			<LeftSidebar active={railView} onSelect={setRailView} onAddShot={handleAddShot} />
+			<LeftSidebar
+				active={railView}
+				onSelect={setRailView}
+			/>
 
 			<SidebarPanels
 				railView={railView}
 				shots={shots}
+				assets={assets}
+				attachedAssetIds={attachedAssetIds}
+				onToggleAttach={toggleAssetAttachment}
 				activeShotId={activeShotId}
 				collapsed={sidebarCollapsed}
 				onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
@@ -832,6 +882,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 				onAddShot={handleAddShot}
 				onUpload={handleUpload}
 				onPatchShot={patchShot}
+				onAddShotFromAsset={handleAddShotFromAsset}
 				projectId={projectId}
 			/>
 

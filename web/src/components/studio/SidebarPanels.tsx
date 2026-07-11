@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type ChangeEvent, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, useCallback, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import {
 	ChevronsLeft,
 	ChevronsRight,
@@ -28,12 +28,16 @@ import {
 	Layers
 } from 'lucide-react'
 import type { Shot } from './types'
+import type { AssetSummary } from '../../lib/shotsApi'
 import { colors, font, radius, shadow } from './theme'
 import MediaBin from './MediaBin'
 
 interface SidebarPanelsProps {
 	railView: string
 	shots: Shot[]
+	assets: AssetSummary[]
+	attachedAssetIds: string[]
+	onToggleAttach: (assetId: string) => void
 	activeShotId: string | null
 	collapsed: boolean
 	onToggleCollapse: () => void
@@ -42,6 +46,7 @@ interface SidebarPanelsProps {
 	onAddShot: () => void
 	onUpload: (file: File) => void
 	onPatchShot: (shotId: string, patch: Partial<Shot>) => void
+	onAddShotFromAsset?: (asset: AssetSummary) => void
 	projectId: string
 }
 
@@ -70,9 +75,16 @@ interface RecordingItem {
 	date: string
 }
 
+const MIN_WIDTH = 240
+const MAX_WIDTH = 520
+const DEFAULT_WIDTH = 310
+
 export default function SidebarPanels({
 	railView,
 	shots,
+	assets,
+	attachedAssetIds,
+	onToggleAttach,
 	activeShotId,
 	collapsed,
 	onToggleCollapse,
@@ -81,9 +93,31 @@ export default function SidebarPanels({
 	onAddShot,
 	onUpload,
 	onPatchShot,
+	onAddShotFromAsset,
 	projectId
 }: SidebarPanelsProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	const [width, setWidth] = useState(DEFAULT_WIDTH)
+
+	const beginResize = (e: ReactPointerEvent<HTMLDivElement>) => {
+		e.preventDefault()
+		const el = e.currentTarget
+		el.setPointerCapture(e.pointerId)
+		const startX = e.clientX
+		const startWidth = width
+
+		const onMove = (ev: PointerEvent) => {
+			const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (ev.clientX - startX)))
+			setWidth(next)
+		}
+		const onUp = (ev: PointerEvent) => {
+			el.releasePointerCapture(ev.pointerId)
+			el.removeEventListener('pointermove', onMove)
+			el.removeEventListener('pointerup', onUp)
+		}
+		el.addEventListener('pointermove', onMove)
+		el.addEventListener('pointerup', onUp)
+	}
 	const activeShot = shots.find((s) => s.id === activeShotId) ?? null
 
 	// --- 1. Storyboard Manager States ---
@@ -317,16 +351,31 @@ export default function SidebarPanels({
 	return (
 		<div
 			style={{
-				width: 310,
+				width,
 				flex: 'none',
 				background: colors.surface1,
 				borderRight: `1px solid ${colors.border}`,
 				display: 'flex',
 				flexDirection: 'column',
 				overflow: 'hidden',
+				position: 'relative',
 				zIndex: 25
 			}}
 		>
+			<div
+				onPointerDown={beginResize}
+				title="Drag to resize"
+				style={{
+					position: 'absolute',
+					top: 0,
+					bottom: 0,
+					right: -3,
+					width: 6,
+					cursor: 'ew-resize',
+					zIndex: 26,
+					touchAction: 'none',
+				}}
+			/>
 			{/* Common Header */}
 			<div
 				style={{
@@ -363,6 +412,9 @@ export default function SidebarPanels({
 				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 					<MediaBin
 						shots={shots}
+						assets={assets}
+						attachedAssetIds={attachedAssetIds}
+						onToggleAttach={onToggleAttach}
 						activeShotId={activeShotId}
 						collapsed={false}
 						onToggleCollapse={onToggleCollapse}
@@ -370,6 +422,8 @@ export default function SidebarPanels({
 						onOpenInspector={onOpenInspector}
 						onAddShot={onAddShot}
 						onUpload={onUpload}
+						onAddShotFromAsset={onAddShotFromAsset}
+						onPatchShot={onPatchShot}
 					/>
 				</div>
 			)}

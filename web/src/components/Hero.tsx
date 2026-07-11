@@ -96,7 +96,7 @@ export default function Hero() {
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="" className="h-6 w-6" />
           <span className="text-[17px] font-semibold tracking-tight" style={{ fontFamily: "'Dirtyline', sans-serif" }}>
-            Arena<sup>TM</sup>
+            Arena
           </span>
         </div>
 

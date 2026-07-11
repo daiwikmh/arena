@@ -4,7 +4,7 @@ import pytest
 
 import engine.shots.executor as shot_executor_mod
 from engine.cache import SceneCache
-from engine.models import ImageResult, Usage
+from engine.models import ImageReference, ImageResult, Usage
 from engine.shots import generate_keyframes
 from tests.fixtures.shots import SHOTS
 
@@ -13,10 +13,14 @@ class FakeGenerator:
     def __init__(self) -> None:
         self.calls = 0
         self.max_concurrent_seen = 0
+        self.last_refs: list[ImageReference] | None = None
         self._in_flight = 0
         self._lock = asyncio.Lock()
 
-    async def __call__(self, prompt_text: str, *, role: str = "scene") -> ImageResult:
+    async def __call__(
+        self, prompt_text: str, *, role: str = "scene", refs: list[ImageReference] | None = None
+    ) -> ImageResult:
+        self.last_refs = refs
         async with self._lock:
             self._in_flight += 1
             self.max_concurrent_seen = max(self.max_concurrent_seen, self._in_flight)
@@ -87,6 +91,25 @@ async def test_concurrency_is_bounded_by_max_concurrent(cache, fake_generator):
     shots = SHOTS[:6]
     await generate_keyframes(shots, cache=cache, max_concurrent=2)
     assert fake_generator.max_concurrent_seen <= 2
+
+
+async def test_object_ref_bytes_are_resolved_from_cache_and_passed_to_the_model(cache, fake_generator):
+    cache.put("ast_marble01", b"marble-reference-bytes", "image/png")
+
+    report = await generate_keyframes(SHOTS[:1], cache=cache, max_concurrent=1)
+
+    assert report.errors == 0
+    assert fake_generator.last_refs is not None
+    assert len(fake_generator.last_refs) == 1
+    assert fake_generator.last_refs[0].data == b"marble-reference-bytes"
+    assert fake_generator.last_refs[0].mime_type == "image/png"
+
+
+async def test_unresolvable_object_ref_is_dropped_not_fatal(cache, fake_generator):
+    report = await generate_keyframes(SHOTS[:1], cache=cache, max_concurrent=1)
+
+    assert report.errors == 0
+    assert fake_generator.last_refs is None
 
 
 async def test_errors_are_captured_not_raised(cache, monkeypatch):

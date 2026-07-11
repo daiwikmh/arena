@@ -8,8 +8,17 @@ from typing import Literal
 from engine.cache import SceneCache, compute_shot_cache_key
 from engine.executor import PRICE_PER_M_OUTPUT_TOKENS, TokenBucket
 from engine.ir import ShotSpec
-from engine.models import MODEL_ROUTING, ModelRole, Usage, generate_image
+from engine.models import MODEL_ROUTING, ImageReference, ModelRole, Usage, generate_image
 from engine.shots.compile import DEFAULT_SHOT_TEMPLATE_VERSION, compile_shot_prompt
+
+
+def _resolve_refs(cache: SceneCache, refs: list[dict[str, str]]) -> list[ImageReference]:
+    resolved: list[ImageReference] = []
+    for ref in refs:
+        cached = cache.get(ref["asset_id"])
+        if cached is not None:
+            resolved.append(ImageReference(data=cached.image_bytes, mime_type=cached.mime_type))
+    return resolved
 
 
 @dataclass(frozen=True)
@@ -62,11 +71,14 @@ async def _generate_one_keyframe(
             error=None,
         )
 
+    refs = _resolve_refs(cache, compiled.refs)
+    image_kwargs = {"refs": refs} if refs else {}
+
     async with semaphore:
         if bucket is not None:
             await bucket.acquire()
         try:
-            generated = await generate_image(compiled.text, role=role)
+            generated = await generate_image(compiled.text, role=role, **image_kwargs)
         except Exception as exc:  # noqa: BLE001 -- surfaced verbatim in the report, not swallowed
             return KeyframeResult(
                 shot=shot,

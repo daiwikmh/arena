@@ -27,10 +27,9 @@ import type { RailView } from './IconRail'
 interface LeftSidebarProps {
 	active: RailView
 	onSelect: (view: RailView) => void
-	onAddShot?: () => void
 }
 
-export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebarProps) {
+export default function LeftSidebar({ active, onSelect }: LeftSidebarProps) {
 	const [collapsed, setCollapsed] = useState(false)
 
 	const menuItems = [
@@ -75,8 +74,6 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 					transition: 'width 0.2s ease-in-out'
 				}}
 			>
-				<img src="/logo.png" alt="Arena" style={collapsedLogoStyle} />
-
 				<button
 					onClick={() => setCollapsed(false)}
 					style={collapsedIconHeaderStyle}
@@ -85,17 +82,7 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 					<Menu size={16} color={colors.textDim} />
 				</button>
 
-				{onAddShot && (
-					<button
-						onClick={onAddShot}
-						style={collapsedCreateBtnStyle}
-						title="Add Shot to Timeline"
-					>
-						<Plus size={14} color={colors.accentText} />
-					</button>
-				)}
-
-				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center' }}>
+				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center', marginTop: 12 }}>
 					{menuItems.map(({ id, label, Icon }) => {
 						const isActive = active === id
 						return (
@@ -143,10 +130,13 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 				transition: 'width 0.2s ease-in-out'
 			}}
 		>
+			{/* Logo and collapse */}
 			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingLeft: 6 }}>
 				<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-					<img src="/logo.png" alt="Arena" style={logoBadgeStyle} />
-					<span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: colors.text, fontFamily: "'Dirtyline', sans-serif" }}>
+					<div style={logoBadgeStyle}>
+						<span style={{ fontSize: 13, fontWeight: 800, color: colors.white }}>A</span>
+					</div>
+					<span style={{ fontSize: 16, fontWeight: 700, tracking: '-0.02em', color: colors.text }}>
 						Arena<sup style={{ fontSize: 8, fontWeight: 500, opacity: 0.7 }}>TM</sup>
 					</span>
 				</div>
@@ -158,13 +148,6 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 					<ChevronLeft size={14} color={colors.textDim} />
 				</button>
 			</div>
-
-			{onAddShot && (
-				<button onClick={onAddShot} style={createButtonStyle}>
-					<Plus size={15} style={{ marginRight: 6 }} strokeWidth={2.5} />
-					<span style={{ fontSize: 12.5, fontWeight: 700 }}>Create shot</span>
-				</button>
-			)}
 
 			{/* Main Links */}
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 18 }}>
@@ -204,7 +187,7 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 
 			{/* Secondary Active Tool Sections (All local tools patched) */}
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-				<span style={{ fontSize: 9.5, fontWeight: 600, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 10, marginBottom: 6 }}>
+				<span style={{ fontSize: 9.5, fontWeight: 600, color: colors.textFaint, textTransform: 'uppercase', tracking: '0.08em', paddingLeft: 10, marginBottom: 6 }}>
 					Interactive Tools
 				</span>
 
@@ -236,7 +219,7 @@ export default function LeftSidebar({ active, onSelect, onAddShot }: LeftSidebar
 					<button style={bottomIconStyle} title="Documentation">
 						<GraduationCap size={13} />
 					</button>
-					<button title="19 Unread Messages" style={{ ...bottomIconStyle, position: 'relative' }}>
+					<button style={bottomIconStyle} title="19 Unread Messages" style={{ ...bottomIconStyle, position: 'relative' }}>
 						<Bell size={13} />
 						<span style={badgeStyle}>19</span>
 					</button>
@@ -256,15 +239,10 @@ const logoBadgeStyle: CSSProperties = {
 	width: 22,
 	height: 22,
 	borderRadius: 5,
-	objectFit: 'contain',
+	background: 'linear-gradient(135deg, #EC4899, #D946EF)',
+	display: 'grid',
+	placeItems: 'center',
 	flex: 'none'
-}
-
-const collapsedLogoStyle: CSSProperties = {
-	width: 24,
-	height: 24,
-	objectFit: 'contain',
-	marginBottom: 10,
 }
 
 const collapsedIconHeaderStyle: CSSProperties = {
@@ -277,19 +255,6 @@ const collapsedIconHeaderStyle: CSSProperties = {
 	cursor: 'pointer',
 	borderRadius: radius.sm,
 	marginBottom: 6
-}
-
-const collapsedCreateBtnStyle: CSSProperties = {
-	width: 32,
-	height: 32,
-	borderRadius: radius.pill,
-	background: colors.accent,
-	border: 0,
-	display: 'grid',
-	placeItems: 'center',
-	cursor: 'pointer',
-	marginBottom: 10,
-	boxShadow: '0 2px 8px rgba(172,191,164,0.3)'
 }
 
 const miniIconBtnStyle: CSSProperties = {
@@ -324,22 +289,6 @@ const panelToggleBtnStyle: CSSProperties = {
 	placeItems: 'center'
 }
 
-const createButtonStyle: CSSProperties = {
-	width: '100%',
-	height: 34,
-	borderRadius: radius.md,
-	background: colors.accent,
-	color: colors.accentText,
-	border: 0,
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	cursor: 'pointer',
-	marginBottom: 18,
-	boxShadow: '0 4px 12px rgba(172,191,164,0.25)',
-	transition: 'opacity 0.15s ease'
-}
-
 const navRowStyle: CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
@@ -371,8 +320,8 @@ const badgeStyle: CSSProperties = {
 	position: 'absolute',
 	top: -2,
 	right: -2,
-	background: colors.critical,
-	color: colors.white,
+	background: '#EC4899',
+	color: '#FAFAFA',
 	fontSize: 7.5,
 	fontWeight: 800,
 	borderRadius: radius.pill,

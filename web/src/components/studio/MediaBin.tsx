@@ -8,6 +8,8 @@ import type { AssetSummary } from '../../lib/shotsApi'
 interface MediaBinProps {
 	shots: Shot[]
 	assets: AssetSummary[]
+	attachedAssetIds: string[]
+	onToggleAttach: (assetId: string) => void
 	activeShotId: string | null
 	collapsed: boolean
 	onToggleCollapse: () => void
@@ -15,6 +17,8 @@ interface MediaBinProps {
 	onOpenInspector: (shotId: string) => void
 	onAddShot: () => void
 	onUpload: (file: File) => void
+	onAddShotFromAsset?: (asset: AssetSummary) => void
+	onPatchShot?: (shotId: string, patch: Partial<Shot>) => void
 }
 
 const STATUS_LABEL: Record<Shot['status'], string> = {
@@ -40,6 +44,8 @@ const STATUS_COLOR: Record<Shot['status'], string> = {
 export default function MediaBin({
 	shots,
 	assets,
+	attachedAssetIds,
+	onToggleAttach,
 	activeShotId,
 	collapsed,
 	onToggleCollapse,
@@ -47,6 +53,8 @@ export default function MediaBin({
 	onOpenInspector,
 	onAddShot,
 	onUpload,
+	onAddShotFromAsset,
+	onPatchShot
 }: MediaBinProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -54,6 +62,44 @@ export default function MediaBin({
 		const file = e.target.files?.[0]
 		if (file) onUpload(file)
 		e.target.value = ''
+	}
+
+	const onDragStart = (e: React.DragEvent, asset: AssetSummary) => {
+		const fullUrl = asset.url.startsWith('http') ? asset.url : `${baseUrl()}${asset.url}`
+		e.dataTransfer.setData('text/plain', JSON.stringify({ assetId: asset.id, filename: asset.filename, url: fullUrl }))
+		e.dataTransfer.effectAllowed = 'copy'
+	}
+
+	const handleDropOnGrid = (e: React.DragEvent) => {
+		e.preventDefault()
+		try {
+			const data = e.dataTransfer.getData('text/plain')
+			if (data && onAddShotFromAsset) {
+				const { assetId, filename, url } = JSON.parse(data)
+				const asset: AssetSummary = { id: assetId, filename, mime_type: 'image/jpeg', url }
+				onAddShotFromAsset(asset)
+			}
+		} catch (err) {
+			console.error('Drop failed', err)
+		}
+	}
+
+	const handleDropOnShot = (e: React.DragEvent, shotId: string) => {
+		e.preventDefault()
+		e.stopPropagation()
+		try {
+			const data = e.dataTransfer.getData('text/plain')
+			if (data && onPatchShot) {
+				const { filename, url } = JSON.parse(data)
+				onPatchShot(shotId, {
+					keyframeUrl: url,
+					status: 'keyframe_ready',
+					label: filename.slice(0, 20) + '...'
+				})
+			}
+		} catch (err) {
+			console.error('Drop on shot failed', err)
+		}
 	}
 
 	if (collapsed) {
@@ -142,6 +188,11 @@ export default function MediaBin({
 				<div>
 					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
 						<span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', color: colors.textDim, textTransform: 'uppercase' }}>Uploaded Assets</span>
+						{attachedAssetIds.length > 0 && (
+							<span style={{ fontSize: 9, color: colors.accent, fontFamily: font.mono }}>
+								{attachedAssetIds.length} attached
+							</span>
+						)}
 					</div>
 
 					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -150,18 +201,27 @@ export default function MediaBin({
 								const fullUrl = asset.url.startsWith('http') ? asset.url : `${baseUrl()}${asset.url}`
 								const isImage = asset.mime_type.startsWith('image/')
 								const isVideo = asset.mime_type.startsWith('video/')
+								const attached = attachedAssetIds.includes(asset.id)
 								return (
-									<div
+									<button
 										key={asset.id}
-										title={asset.filename}
+										draggable={true}
+										onDragStart={(e) => onDragStart(e, asset)}
+										title={attached ? `${asset.filename} — drag to shots, or click to detach` : `${asset.filename} — drag to shots, or click to attach`}
+										onClick={() => onToggleAttach(asset.id)}
 										style={{
-											border: `1px solid ${colors.border}`,
+											border: `1px solid ${attached ? colors.accent : colors.border}`,
 											borderRadius: radius.md,
 											background: colors.surface2,
+											boxShadow: attached ? `0 0 0 1px ${colors.accent}` : 'none',
 											overflow: 'hidden',
 											display: 'flex',
 											flexDirection: 'column',
-											position: 'relative'
+											position: 'relative',
+											padding: 0,
+											cursor: 'grab',
+											textAlign: 'left',
+											transition: 'border-color .12s, box-shadow .12s',
 										}}
 									>
 										<div
@@ -178,6 +238,7 @@ export default function MediaBin({
 												<img
 													src={fullUrl}
 													alt={asset.filename}
+													draggable={false}
 													style={{ width: '100%', height: '100%', objectFit: 'cover' }}
 												/>
 											) : isVideo ? (
@@ -191,32 +252,25 @@ export default function MediaBin({
 												<span style={{ fontSize: 16, color: colors.textFaint }}>📄</span>
 											)}
 
-											<button
-												onClick={() => {
-													navigator.clipboard.writeText(asset.filename)
-													alert(`Copied "${asset.filename}" to clipboard. Paste/type it in prompt to reference it!`)
-												}}
+											<span
 												style={{
 													position: 'absolute',
-													inset: 0,
-													background: 'rgba(0,0,0,0.7)',
-													border: 0,
-													color: '#ffffff',
-													opacity: 0,
-													transition: 'opacity 0.15s ease',
-													cursor: 'pointer',
-													display: 'flex',
-													flexDirection: 'column',
-													alignItems: 'center',
-													justifyContent: 'center',
-													gap: 4
+													top: 4,
+													right: 4,
+													fontSize: 8,
+													fontWeight: 700,
+													letterSpacing: '0.03em',
+													textTransform: 'uppercase',
+													padding: '2px 5px',
+													borderRadius: radius.sm,
+													fontFamily: font.mono,
+													background: attached ? colors.accent : 'rgba(10,11,13,0.78)',
+													color: attached ? colors.accentText : colors.textFaint,
+													border: attached ? 'none' : `1px solid ${colors.borderFaint}`,
 												}}
-												onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-												onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
 											>
-												<span style={{ fontSize: 9, fontWeight: 700 }}>COPY REF</span>
-												<span style={{ fontSize: 8, opacity: 0.8 }}>Use in prompt</span>
-											</button>
+												{attached ? 'attached' : 'attach'}
+											</span>
 										</div>
 										<div
 											style={{
@@ -230,7 +284,7 @@ export default function MediaBin({
 										>
 											{asset.filename}
 										</div>
-									</div>
+									</button>
 								)
 							})
 						) : (
@@ -261,7 +315,22 @@ export default function MediaBin({
 						<span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', color: colors.textDim, textTransform: 'uppercase' }}>Storyboard Shots</span>
 					</div>
 
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+					<div
+						onDragOver={(e) => {
+							e.preventDefault()
+							e.dataTransfer.dropEffect = 'copy'
+						}}
+						onDrop={handleDropOnGrid}
+						style={{
+							display: 'grid',
+							gridTemplateColumns: '1fr 1fr',
+							gap: 8,
+							minHeight: 100,
+							border: '1px dashed transparent',
+							borderRadius: radius.md,
+							transition: 'border-color 0.15s ease'
+						}}
+					>
 						{shots.map((shot) => {
 							const thumb = shot.keyframeUrl ?? shot.clipUrl
 							const isActive = shot.id === activeShotId
@@ -272,6 +341,11 @@ export default function MediaBin({
 										onSelect(shot.id)
 										onOpenInspector(shot.id)
 									}}
+									onDragOver={(e) => {
+										e.preventDefault()
+										e.dataTransfer.dropEffect = 'copy'
+									}}
+									onDrop={(e) => handleDropOnShot(e, shot.id)}
 									style={{
 										padding: 0,
 										border: `1px solid ${isActive ? colors.accent : colors.border}`,

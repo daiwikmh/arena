@@ -1,5 +1,5 @@
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
-import type { CSSProperties, MouseEvent, PointerEvent } from 'react'
+import { Copy, Pause, Play, Scissors, SkipBack, SkipForward, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
+import { useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import { FPS, formatTimecodeFrames, shotSpanSec, snapToFrame, timelineEndSec, type Shot } from './types'
 import { colors, font, radius } from './theme'
 
@@ -15,9 +15,14 @@ interface TimelineProps {
 	onTogglePlay: () => void
 	onStepBack: () => void
 	onStepForward: () => void
+	onSplitShot: (shotId: string, atSec: number) => void
+	onDuplicateShot: (shotId: string) => void
+	onDeleteShot: (shotId: string) => void
 }
 
-const PX_PER_SEC = 40
+const DEFAULT_PX_PER_SEC = 40
+const MIN_PX_PER_SEC = 14
+const MAX_PX_PER_SEC = 140
 const MIN_SPAN = 1 / FPS
 
 type DragMode = 'move' | 'trim-l' | 'trim-r'
@@ -38,17 +43,30 @@ export default function Timeline({
 	onTogglePlay,
 	onStepBack,
 	onStepForward,
+	onSplitShot,
+	onDuplicateShot,
+	onDeleteShot,
 }: TimelineProps) {
+	const [pxPerSec, setPxPerSec] = useState(DEFAULT_PX_PER_SEC)
+	const zoomIn = () => setPxPerSec((v) => Math.min(MAX_PX_PER_SEC, Math.round(v * 1.4)))
+	const zoomOut = () => setPxPerSec((v) => Math.max(MIN_PX_PER_SEC, Math.round(v / 1.4)))
+
 	const total = Math.max(timelineEndSec(shots), 30)
-	const width = total * PX_PER_SEC
-	const tickEvery = total > 90 ? 5 : 1
+	const width = total * pxPerSec
+	const tickEvery = [1, 5, 10, 30, 60].find((step) => step * pxPerSec >= 50) ?? 60
 
 	const ticks: number[] = []
 	for (let t = 0; t <= total; t += tickEvery) ticks.push(t)
 
+	const activeShot = shots.find((s) => s.id === activeShotId) ?? null
+	const canSplit =
+		!!activeShot &&
+		currentTimeSec > activeShot.startSec + 1 / FPS &&
+		currentTimeSec < activeShot.startSec + shotSpanSec(activeShot) - 1 / FPS
+
 	const handleRulerClick = (e: MouseEvent<HTMLDivElement>) => {
 		const rect = e.currentTarget.getBoundingClientRect()
-		const sec = (e.clientX - rect.left) / PX_PER_SEC
+		const sec = (e.clientX - rect.left) / pxPerSec
 		onSeek(clamp(snapToFrame(sec), 0, total))
 	}
 
@@ -63,7 +81,7 @@ export default function Timeline({
 		const onMove = (ev: globalThis.PointerEvent) => {
 			const dx = ev.clientX - startX
 			if (Math.abs(dx) > 3) moved = true
-			const dSec = dx / PX_PER_SEC
+			const dSec = dx / pxPerSec
 			if (mode === 'move') {
 				onPatchShot(shot.id, { startSec: Math.max(0, snapToFrame(orig.startSec + dSec)) })
 			} else if (mode === 'trim-l') {
@@ -129,7 +147,73 @@ export default function Timeline({
 					</button>
 				</div>
 
-				<span style={{ minWidth: 132 }} />
+				<div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+					<div style={{ display: 'flex', gap: 4 }}>
+						<button
+							onClick={() => activeShot && onSplitShot(activeShot.id, currentTimeSec)}
+							onMouseEnter={(e) => canSplit && (e.currentTarget.style.background = colors.surface4)}
+							onMouseLeave={(e) => (e.currentTarget.style.background = colors.surface3)}
+							disabled={!canSplit}
+							title={activeShot ? 'Split clip at playhead' : 'Select a clip to split'}
+							style={{ ...editToolButtonStyle, opacity: canSplit ? 1 : 0.35, cursor: canSplit ? 'pointer' : 'default' }}
+						>
+							<Scissors size={13} strokeWidth={1.8} />
+						</button>
+						<button
+							onClick={() => activeShot && onDuplicateShot(activeShot.id)}
+							onMouseEnter={(e) => activeShot && (e.currentTarget.style.background = colors.surface4)}
+							onMouseLeave={(e) => (e.currentTarget.style.background = colors.surface3)}
+							disabled={!activeShot}
+							title={activeShot ? 'Duplicate clip' : 'Select a clip to duplicate'}
+							style={{ ...editToolButtonStyle, opacity: activeShot ? 1 : 0.35, cursor: activeShot ? 'pointer' : 'default' }}
+						>
+							<Copy size={13} strokeWidth={1.8} />
+						</button>
+						<button
+							onClick={() => activeShot && onDeleteShot(activeShot.id)}
+							onMouseEnter={(e) => activeShot && (e.currentTarget.style.background = colors.surface4)}
+							onMouseLeave={(e) => (e.currentTarget.style.background = colors.surface3)}
+							disabled={!activeShot}
+							title={activeShot ? 'Delete clip' : 'Select a clip to delete'}
+							style={{
+								...editToolButtonStyle,
+								opacity: activeShot ? 1 : 0.35,
+								cursor: activeShot ? 'pointer' : 'default',
+								color: activeShot ? colors.critical : colors.textFaint,
+							}}
+						>
+							<Trash2 size={13} strokeWidth={1.8} />
+						</button>
+					</div>
+
+					<div style={{ width: 1, height: 18, background: colors.border }} />
+
+					<div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+						<button
+							onClick={zoomOut}
+							disabled={pxPerSec <= MIN_PX_PER_SEC}
+							onMouseEnter={(e) => (e.currentTarget.style.background = colors.surface4)}
+							onMouseLeave={(e) => (e.currentTarget.style.background = colors.surface3)}
+							title="Zoom out"
+							style={{ ...editToolButtonStyle, opacity: pxPerSec <= MIN_PX_PER_SEC ? 0.35 : 1 }}
+						>
+							<ZoomOut size={13} strokeWidth={1.8} />
+						</button>
+						<span style={{ fontSize: 9.5, fontFamily: font.mono, color: colors.textFaint, minWidth: 30, textAlign: 'center' }}>
+							{Math.round((pxPerSec / DEFAULT_PX_PER_SEC) * 100)}%
+						</span>
+						<button
+							onClick={zoomIn}
+							disabled={pxPerSec >= MAX_PX_PER_SEC}
+							onMouseEnter={(e) => (e.currentTarget.style.background = colors.surface4)}
+							onMouseLeave={(e) => (e.currentTarget.style.background = colors.surface3)}
+							title="Zoom in"
+							style={{ ...editToolButtonStyle, opacity: pxPerSec >= MAX_PX_PER_SEC ? 0.35 : 1 }}
+						>
+							<ZoomIn size={13} strokeWidth={1.8} />
+						</button>
+					</div>
+				</div>
 			</div>
 
 			<div style={{ overflowX: 'auto' }}>
@@ -149,7 +233,7 @@ export default function Timeline({
 								key={t}
 								style={{
 									position: 'absolute',
-									left: t * PX_PER_SEC,
+									left: t * pxPerSec,
 									top: 0,
 									bottom: 0,
 									width: 1,
@@ -162,8 +246,8 @@ export default function Timeline({
 					<div style={{ position: 'relative', height: 64, padding: '6px 0', background: colors.surface0 }}>
 						{shots.map((shot) => {
 							const span = shotSpanSec(shot)
-							const left = shot.startSec * PX_PER_SEC
-							const w = Math.max(span * PX_PER_SEC, 8)
+							const left = shot.startSec * pxPerSec
+							const w = Math.max(span * pxPerSec, 8)
 							const isActive = shot.id === activeShotId
 							const isTrimmed = shot.trimStartSec > 0 || shot.trimEndSec < shot.durationSec
 
@@ -172,6 +256,12 @@ export default function Timeline({
 									key={shot.id}
 									onPointerDown={(e) => beginDrag(e, 'move', shot)}
 									onDoubleClick={() => onOpenInspector(shot.id)}
+									onMouseEnter={(e) => {
+										if (!isActive) e.currentTarget.style.borderColor = colors.borderStrong
+									}}
+									onMouseLeave={(e) => {
+										if (!isActive) e.currentTarget.style.borderColor = colors.border
+									}}
 									title={`${shot.label} — drag to move, edges to trim, double-click to edit`}
 									style={{
 										position: 'absolute',
@@ -192,6 +282,7 @@ export default function Timeline({
 										padding: 4,
 										touchAction: 'none',
 										userSelect: 'none',
+										transition: 'border-color 0.12s ease',
 									}}
 								>
 									<div
@@ -241,7 +332,7 @@ export default function Timeline({
 						<div
 							style={{
 								position: 'absolute',
-								left: currentTimeSec * PX_PER_SEC,
+								left: currentTimeSec * pxPerSec,
 								top: -22,
 								bottom: 0,
 								width: 1,
@@ -253,6 +344,18 @@ export default function Timeline({
 			</div>
 		</div>
 	)
+}
+
+const editToolButtonStyle: CSSProperties = {
+	width: 26,
+	height: 26,
+	display: 'grid',
+	placeItems: 'center',
+	border: `1px solid ${colors.border}`,
+	borderRadius: radius.sm,
+	background: colors.surface3,
+	color: colors.textDim,
+	transition: 'background-color 0.12s ease',
 }
 
 const transportButtonStyle: CSSProperties = {

@@ -1,47 +1,47 @@
-// Palette referenced from video-editor (shadcn zinc, dark)
 export const colors = {
 	black: '#000000',
-	surface0: '#09090B',
-	surface1: '#0E0E10',
-	surface2: '#18181B',
-	surface3: '#202023',
-	surface4: '#27272A',
+	surface0: '#000000',
+	surface1: '#0a0a0a',
+	surface2: '#121212',
+	surface3: '#1c1c1c',
+	surface4: '#262626',
 
-	border: '#27272A',
-	borderStrong: '#3F3F46',
-	borderFaint: '#1C1C1F',
+	border: '#1c1c1c',
+	borderStrong: '#333333',
+	borderFaint: '#0d0d0d',
 
-	white: '#FAFAFA',
-	text: '#FAFAFA',
-	textDim: '#A1A1AA',
-	textFaint: '#71717A',
+	white: '#ffffff',
+	text: '#ffffff',
+	textDim: '#a3a3a3',
+	textFaint: '#6b6b6b',
 
-	accent: '#FAFAFA',
-	accentDim: '#27272A',
-	accentText: '#09090B',
+	accent: '#ffffff',
+	accentDim: '#1a1a1a',
+	accentText: '#000000',
 
-	critical: '#D4D4D8',
-	warning: '#A1A1AA',
-	clear: '#FAFAFA',
+	critical: '#ffffff',
+	warning: '#ffffff',
+	clear: '#ffffff',
 } as const
 
 export const radius = {
-	sm: 4,
-	md: 8,
-	lg: 12,
+	sm: 6,
+	md: 10,
+	lg: 14,
 	pill: 999,
 } as const
 
 export const shadow = {
-	bar: '0 1px 0 rgba(0,0,0,.5), 0 6px 20px -10px rgba(0,0,0,.65)',
-	card: '0 1px 2px rgba(0,0,0,.4), 0 10px 24px -14px rgba(0,0,0,.6)',
-	elevated: '0 4px 14px rgba(0,0,0,.5), 0 28px 56px -24px rgba(0,0,0,.8)',
-	glow: '0 0 0 1px rgba(250,250,250,.14), 0 8px 30px -12px rgba(0,0,0,.7)',
+	bar: '0 1px 0 rgba(0,0,0,.6), 0 6px 20px -10px rgba(0,0,0,.8)',
+	card: '0 1px 3px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8)',
+	elevated: '0 12px 28px rgba(0,0,0,.6), 0 32px 64px -24px rgba(0,0,0,.9)',
+	glow: '0 0 0 1px rgba(255,255,255,.1), 0 8px 30px -12px rgba(0,0,0,.8)',
 } as const
 
 export const font = {
 	mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
-	sans: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+	sans: '"Roboto", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
+	display: '"Roboto", "Instrument Serif", Georgia, serif',
 } as const
 
 export const bar = {

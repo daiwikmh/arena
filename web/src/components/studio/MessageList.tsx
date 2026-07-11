@@ -17,13 +17,16 @@ export default function MessageList({ messages, busy, style }: MessageListProps)
 					style={{
 						alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
 						maxWidth: '90%',
-						padding: '9px 12px',
+						padding: '10px 13px',
 						borderRadius: radius.lg,
-						border: `1px solid ${colors.border}`,
+						border: `1px solid ${m.role === 'director' ? colors.borderStrong : colors.border}`,
+						borderLeft: m.role === 'director' ? `3px solid ${colors.accent}` : `1px solid ${colors.border}`,
 						background: m.role === 'user' ? colors.surface3 : colors.surface2,
-						fontSize: 13.5,
-						lineHeight: 1.5,
+						fontSize: 13,
+						lineHeight: 1.55,
+						fontFamily: 'inherit',
 						color: m.role === 'director' ? colors.text : colors.textDim,
+						boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
 					}}
 				>
 					{m.text}

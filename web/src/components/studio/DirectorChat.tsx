@@ -1,5 +1,6 @@
+import { Sparkles } from 'lucide-react'
 import type { DirectorMessage, GenerationOptions, Shot } from './types'
-import { colors, font, radius } from './theme'
+import { colors, font, radius, shadow } from './theme'
 import Composer from './Composer'
 import MessageList from './MessageList'
 
@@ -31,6 +32,7 @@ export default function DirectorChat({
 				flex: 'none',
 				borderLeft: `1px solid ${colors.border}`,
 				background: colors.surface1,
+				boxShadow: shadow.bar,
 				display: 'flex',
 				flexDirection: 'column',
 				zIndex: 20,
@@ -38,17 +40,48 @@ export default function DirectorChat({
 		>
 			<div
 				style={{
-					padding: '10px 14px',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 10,
+					padding: '12px 14px',
 					borderBottom: `1px solid ${colors.border}`,
 					background: colors.surface2,
-					fontSize: 10.5,
-					letterSpacing: '0.1em',
-					textTransform: 'uppercase',
-					color: colors.textFaint,
-					fontFamily: font.mono,
 				}}
 			>
-				Director
+				<div
+					style={{
+						width: 26,
+						height: 26,
+						flex: 'none',
+						borderRadius: radius.pill,
+						background: colors.accentDim,
+						border: `1px solid ${colors.accent}`,
+						display: 'grid',
+						placeItems: 'center',
+					}}
+				>
+					<Sparkles size={13} strokeWidth={1.8} color={colors.accent} />
+				</div>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+					<span style={{ fontSize: 13, fontWeight: 600, color: colors.text, fontFamily: font.sans }}>
+						Director
+					</span>
+					<span
+						style={{
+							fontSize: 10,
+							letterSpacing: '0.06em',
+							textTransform: 'uppercase',
+							color: colors.textFaint,
+							fontFamily: font.mono,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 5,
+						}}
+					>
+						<span style={{ width: 5, height: 5, borderRadius: radius.pill, background: colors.clear }} />
+						{busy ? 'directing…' : 'ready'}
+					</span>
+				</div>
 			</div>
 
 			<MessageList messages={messages} busy={busy} style={{ flex: 1, overflowY: 'auto', padding: 16 }} />

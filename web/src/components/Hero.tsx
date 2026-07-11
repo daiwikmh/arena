@@ -76,7 +76,7 @@ export default function Hero() {
   return (
     <div
       className="min-h-screen bg-black text-white overflow-x-hidden"
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      style={{ fontFamily: "'Roboto', sans-serif" }}
     >
       <div ref={videoBgRef} className="fixed inset-0 z-0 scale-[1.08] origin-center">
         <video
@@ -95,7 +95,7 @@ export default function Hero() {
       <header className="fixed top-0 inset-x-0 z-50 px-10 py-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="" className="h-6 w-6" />
-          <span className="text-[17px] font-semibold tracking-tight">
+          <span className="text-[17px] font-semibold tracking-tight" style={{ fontFamily: "'Dirtyline', sans-serif" }}>
             Arena<sup>TM</sup>
           </span>
         </div>
@@ -128,7 +128,7 @@ export default function Hero() {
       >
         <h1
           style={{
-            fontFamily: "'Inter', sans-serif",
+            fontFamily: "'Roboto', sans-serif",
             fontWeight: 400,
             fontSize: 'clamp(40px, 5.4vw, 72px)',
             lineHeight: 1.1,

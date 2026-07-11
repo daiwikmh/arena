@@ -2,9 +2,12 @@ import { ChevronsLeft, ChevronsRight, Plus, Upload } from 'lucide-react'
 import { useRef, type ChangeEvent, type CSSProperties } from 'react'
 import type { Shot } from './types'
 import { colors, font, radius, shadow } from './theme'
+import { baseUrl } from '../../lib/api'
+import type { AssetSummary } from '../../lib/shotsApi'
 
 interface MediaBinProps {
 	shots: Shot[]
+	assets: AssetSummary[]
 	activeShotId: string | null
 	collapsed: boolean
 	onToggleCollapse: () => void
@@ -36,6 +39,7 @@ const STATUS_COLOR: Record<Shot['status'], string> = {
 
 export default function MediaBin({
 	shots,
+	assets,
 	activeShotId,
 	collapsed,
 	onToggleCollapse,
@@ -118,7 +122,7 @@ export default function MediaBin({
 						fontFamily: font.mono,
 					}}
 				>
-					Media
+					Media Library
 				</span>
 				<span style={{ flex: 1 }} />
 				<input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={handleFileChange} />
@@ -134,89 +138,214 @@ export default function MediaBin({
 				</button>
 			</div>
 
-			<div style={{ padding: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, overflowY: 'auto' }}>
-				{shots.map((shot) => {
-					const thumb = shot.keyframeUrl ?? shot.clipUrl
-					const isActive = shot.id === activeShotId
-					return (
-						<button
-							key={shot.id}
-							onClick={() => {
-								onSelect(shot.id)
-								onOpenInspector(shot.id)
-							}}
-							style={{
-								padding: 0,
-								border: `1px solid ${isActive ? colors.accent : colors.border}`,
-								borderRadius: radius.md,
-								background: colors.surface2,
-								boxShadow: isActive ? `0 0 0 1px ${colors.accent}, ${shadow.card}` : shadow.card,
-								overflow: 'hidden',
-								cursor: 'pointer',
-								textAlign: 'left',
-								transition: 'border-color .12s, box-shadow .12s',
-							}}
-						>
-							<div
-								style={{
-									aspectRatio: '16 / 9',
-									background: colors.surface0,
-									display: 'grid',
-									placeItems: 'center',
-									position: 'relative',
-								}}
-							>
-								{thumb ? (
-									<img
-										src={thumb}
-										alt={shot.label}
-										style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-									/>
-								) : (
-									<span style={{ fontSize: 10, color: colors.borderStrong }}>+</span>
-								)}
-								{shot.status !== 'empty' && (
-									<span
+			<div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: 10, gap: 16 }}>
+				<div>
+					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
+						<span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', color: colors.textDim, textTransform: 'uppercase' }}>Uploaded Assets</span>
+					</div>
+
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+						{assets && assets.length > 0 ? (
+							assets.map((asset) => {
+								const fullUrl = asset.url.startsWith('http') ? asset.url : `${baseUrl()}${asset.url}`
+								const isImage = asset.mime_type.startsWith('image/')
+								const isVideo = asset.mime_type.startsWith('video/')
+								return (
+									<div
+										key={asset.id}
+										title={asset.filename}
 										style={{
-											position: 'absolute',
-											right: 4,
-											bottom: 4,
-											fontSize: 8.5,
-											letterSpacing: '0.03em',
-											textTransform: 'uppercase',
-											background: 'rgba(10,11,13,0.88)',
-											border: `1px solid ${colors.borderFaint}`,
-											color: STATUS_COLOR[shot.status],
-											padding: '2px 5px',
-											borderRadius: radius.sm,
-											fontFamily: font.mono,
+											border: `1px solid ${colors.border}`,
+											borderRadius: radius.md,
+											background: colors.surface2,
+											overflow: 'hidden',
+											display: 'flex',
+											flexDirection: 'column',
+											position: 'relative'
 										}}
 									>
-										{STATUS_LABEL[shot.status]}
-									</span>
-								)}
-							</div>
-							<div style={{ padding: '5px 7px', fontSize: 11, color: colors.textDim }}>{shot.label}</div>
-						</button>
-					)
-				})}
+										<div
+											style={{
+												aspectRatio: '16 / 9',
+												background: colors.surface0,
+												display: 'grid',
+												placeItems: 'center',
+												position: 'relative',
+												overflow: 'hidden'
+											}}
+										>
+											{isImage ? (
+												<img
+													src={fullUrl}
+													alt={asset.filename}
+													style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+												/>
+											) : isVideo ? (
+												<video
+													src={fullUrl}
+													muted
+													playsInline
+													style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+												/>
+											) : (
+												<span style={{ fontSize: 16, color: colors.textFaint }}>📄</span>
+											)}
 
-				<button
-					onClick={onAddShot}
-					style={{
-						aspectRatio: '16 / 9',
-						border: `1px dashed ${colors.borderStrong}`,
-						borderRadius: radius.md,
-						background: 'transparent',
-						color: colors.textFaint,
-						display: 'grid',
-						placeItems: 'center',
-						cursor: 'pointer',
-						alignSelf: 'start',
-					}}
-				>
-					<Plus size={16} strokeWidth={1.6} />
-				</button>
+											<button
+												onClick={() => {
+													navigator.clipboard.writeText(asset.filename)
+													alert(`Copied "${asset.filename}" to clipboard. Paste/type it in prompt to reference it!`)
+												}}
+												style={{
+													position: 'absolute',
+													inset: 0,
+													background: 'rgba(0,0,0,0.7)',
+													border: 0,
+													color: '#ffffff',
+													opacity: 0,
+													transition: 'opacity 0.15s ease',
+													cursor: 'pointer',
+													display: 'flex',
+													flexDirection: 'column',
+													alignItems: 'center',
+													justifyContent: 'center',
+													gap: 4
+												}}
+												onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+												onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+											>
+												<span style={{ fontSize: 9, fontWeight: 700 }}>COPY REF</span>
+												<span style={{ fontSize: 8, opacity: 0.8 }}>Use in prompt</span>
+											</button>
+										</div>
+										<div
+											style={{
+												padding: '4px 6px',
+												fontSize: 9.5,
+												color: colors.textDim,
+												whiteSpace: 'nowrap',
+												textOverflow: 'ellipsis',
+												overflow: 'hidden'
+											}}
+										>
+											{asset.filename}
+										</div>
+									</div>
+								)
+							})
+						) : (
+							<div
+								onClick={() => fileInputRef.current?.click()}
+								style={{
+									gridColumn: 'span 2',
+									border: `1px dashed ${colors.borderStrong}`,
+									borderRadius: radius.md,
+									padding: '16px 8px',
+									textAlign: 'center',
+									color: colors.textFaint,
+									fontSize: 10,
+									cursor: 'pointer',
+									background: 'rgba(255,255,255,0.01)'
+								}}
+							>
+								No files uploaded.<br/>Click to upload.
+							</div>
+						)}
+					</div>
+				</div>
+
+				<div style={{ height: 1, background: colors.border }} />
+
+				<div>
+					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
+						<span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', color: colors.textDim, textTransform: 'uppercase' }}>Storyboard Shots</span>
+					</div>
+
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+						{shots.map((shot) => {
+							const thumb = shot.keyframeUrl ?? shot.clipUrl
+							const isActive = shot.id === activeShotId
+							return (
+								<button
+									key={shot.id}
+									onClick={() => {
+										onSelect(shot.id)
+										onOpenInspector(shot.id)
+									}}
+									style={{
+										padding: 0,
+										border: `1px solid ${isActive ? colors.accent : colors.border}`,
+										borderRadius: radius.md,
+										background: colors.surface2,
+										boxShadow: isActive ? `0 0 0 1px ${colors.accent}, ${shadow.card}` : shadow.card,
+										overflow: 'hidden',
+										cursor: 'pointer',
+										textAlign: 'left',
+										transition: 'border-color .12s, box-shadow .12s',
+									}}
+								>
+									<div
+										style={{
+											aspectRatio: '16 / 9',
+											background: colors.surface0,
+											display: 'grid',
+											placeItems: 'center',
+											position: 'relative',
+										}}
+									>
+										{thumb ? (
+											<img
+												src={thumb}
+												alt={shot.label}
+												style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+											/>
+										) : (
+											<span style={{ fontSize: 10, color: colors.borderStrong }}>+</span>
+										)}
+										{shot.status !== 'empty' && (
+											<span
+												style={{
+													position: 'absolute',
+													right: 4,
+													bottom: 4,
+													fontSize: 8.5,
+													letterSpacing: '0.03em',
+													textTransform: 'uppercase',
+													background: 'rgba(10,11,13,0.88)',
+													border: `1px solid ${colors.borderFaint}`,
+													color: STATUS_COLOR[shot.status],
+													padding: '2px 5px',
+													borderRadius: radius.sm,
+													fontFamily: font.mono,
+												}}
+											>
+												{STATUS_LABEL[shot.status]}
+											</span>
+										)}
+									</div>
+									<div style={{ padding: '5px 7px', fontSize: 11, color: colors.textDim }}>{shot.label}</div>
+								</button>
+							)
+						})}
+
+						<button
+							onClick={onAddShot}
+							style={{
+								aspectRatio: '16 / 9',
+								border: `1px dashed ${colors.borderStrong}`,
+								borderRadius: radius.md,
+								background: 'transparent',
+								color: colors.textFaint,
+								display: 'grid',
+								placeItems: 'center',
+								cursor: 'pointer',
+								alignSelf: 'start',
+							}}
+						>
+							<Plus size={16} strokeWidth={1.6} />
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 	)

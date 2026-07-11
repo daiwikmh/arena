@@ -3,6 +3,7 @@ import { Tldraw, createShapeId, type Editor as TldrawEditor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { ProofFrameShapeUtil } from '../proofFrame'
 import type { Shot } from './types'
+import { colors } from './theme'
 
 const SHAPE_UTILS = [ProofFrameShapeUtil]
 const CANDIDATE_LABELS = ['Take 1', 'Take 2', 'Take 3']
@@ -74,7 +75,7 @@ export default function StoryboardView({ shot, projectId }: StoryboardViewProps)
 
 	if (!shot) {
 		return (
-			<div style={{ flex: 1, display: 'grid', placeItems: 'center', color: '#6B727A', fontSize: 13 }}>
+			<div style={{ flex: 1, display: 'grid', placeItems: 'center', color: colors.textFaint, fontSize: 13 }}>
 				Select a shot to compare keyframe takes.
 			</div>
 		)

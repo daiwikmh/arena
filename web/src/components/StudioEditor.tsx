@@ -19,7 +19,8 @@ import {
 	Bell,
 	Settings2,
 	Download,
-	FileText
+	FileText,
+	Radio
 } from 'lucide-react'
 import LeftSidebar from './studio/LeftSidebar'
 import { type RailView } from './studio/IconRail'
@@ -616,6 +617,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 					active={railView}
 					onSelect={handleSelectRailView}
 					onHomeClick={() => setViewingLanding(true)}
+					onGoLive={() => { window.location.href = `/live/${projectId}?role=control` }}
 				/>
 
 				<div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'transparent', padding: '20px 40px 40px', position: 'relative', overflowX: 'hidden', zIndex: 1 }}>
@@ -680,23 +682,20 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 						{/* Quick Categories Icons */}
 						<div style={categoryGridStyle}>
 							{[
-								{ label: 'Spaces', icon: Layers, view: 'captions' as RailView },
+								{ label: 'Go Live', icon: Radio, view: 'media' as RailView, accent: true, live: true },
 								{ label: 'Image', icon: Sparkles, view: 'media' as RailView },
-								{ label: 'Video', icon: Video, view: 'storyboard' as RailView },
-								{ label: 'Audio', icon: Mic, view: 'music' as RailView },
-								{ label: 'Design', icon: Palette, view: 'text' as RailView },
-								{ label: '3D', icon: Box, view: 'storyboard' as RailView },
-								{ label: 'Stock', icon: Grid, view: 'media' as RailView },
-								{ label: 'All tools', icon: Settings, view: 'media' as RailView, accent: true },
+								{ label: 'Storyboard', icon: Layers, view: 'storyboard' as RailView },
+								{ label: 'Media bin', icon: Grid, view: 'media' as RailView },
 							].map((item, idx) => (
 								<button
 									key={idx}
 									onClick={() => {
+										if ('live' in item && item.live) {
+											window.location.href = `/live/${projectId}?role=control`
+											return
+										}
 										setRailView(item.view);
 										setEditorStarted(true); setViewingLanding(false);
-										if (item.label !== 'All tools') {
-											setLandingSearchText(`Generating a dynamic ${item.label.toLowerCase()} scene...`);
-										}
 									}}
 									onMouseEnter={(e) => {
 										const icon = e.currentTarget.firstElementChild as HTMLElement
@@ -877,6 +876,7 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 				active={railView}
 				onSelect={handleSelectRailView}
 				onHomeClick={() => setViewingLanding(true)}
+				onGoLive={() => { window.location.href = `/live/${projectId}?role=control` }}
 			/>
 
 			<SidebarPanels

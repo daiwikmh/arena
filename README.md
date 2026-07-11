@@ -38,7 +38,7 @@ One integrated interface, three cohesive layers:
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 Arena's layout is divided into a server-side Python intelligence cascade and a high-fidelity Astro/React frontend console.
 
@@ -74,27 +74,27 @@ graph TD
 
 ## Features
 
-### 🎨 Premium Studio Portal
+### Premium Studio Portal
 - **Magnific-Inspired UI** — High-contrast deep warm dark theme (`#08080A`), colorful tool categories, promotional unlimited badges, and split-panel navigation.
 - **Unified Left Navigation** — Fully active collapsible left sidebar featuring single-click scene creator triggers (`+ Create shot`) and interactive panel toggles.
 - **Interactive Dashboard Categories** — Quick-launch tiles mapping direct access to **Spaces** (Subtitles), **Image** (Media Bin), **Video** (Storyboard canvas), **Audio** (Tracks), **Design** (Title layouts), and **3D Sandbox**.
 - **Active Sandbox Sandbox** — Interactive Projects folder listings, team UPGRADE locks, and nodes canvas flowchart vector graphics (SVG bezier links) that jump straight into active editing scenes.
 
-### 🎛️ Interactive Multi-Track Tools
-- 📁 **Media Bin** — Interactive generated clip collections, failed job boundaries, reference asset uploads, and clip timeline inspectors.
-- 📋 **Storyboard settings** — Multi-take grids,Sequence order listings with direct index select, and export scripts.
-- 🎵 **Music & Audio** — Preset cinematic background themes with **dynamic vertical equalizer animations** reacting in real-time, volume mixers, and timeline modifiers.
-- 💬 **Captions** — Style presets (Netflix, TikTok uppercase, cinematic), caption auto-transcribers with progress indicators, and active timeline subtitle inputs.
-- 🎙️ **Voiceover & TTS** — Multiple announcer text-to-speech selectors, speed multipliers, and a **live microphone recorder** with active timer and wave level-meters.
-- 🔠 **Title Overlays** — Motion title overlay designers (Cinematic Acts, Lower Thirds, Cyberpunk Glitches) with tracking letter spacing, font scales, and timeline applying hooks.
+### Interactive Multi-Track Tools
+-  **Media Bin** — Interactive generated clip collections, failed job boundaries, reference asset uploads, and clip timeline inspectors.
+-  **Storyboard settings** — Multi-take grids,Sequence order listings with direct index select, and export scripts.
+-  **Music & Audio** — Preset cinematic background themes with **dynamic vertical equalizer animations** reacting in real-time, volume mixers, and timeline modifiers.
+-  **Captions** — Style presets (Netflix, TikTok uppercase, cinematic), caption auto-transcribers with progress indicators, and active timeline subtitle inputs.
+-  **Voiceover & TTS** — Multiple announcer text-to-speech selectors, speed multipliers, and a **live microphone recorder** with active timer and wave level-meters.
+-  **Title Overlays** — Motion title overlay designers (Cinematic Acts, Lower Thirds, Cyberpunk Glitches) with tracking letter spacing, font scales, and timeline applying hooks.
 
-### 🎥 Arena Live — voice-directed camera effects
+### Arena Live — voice-directed camera effects
 - Point a camera at yourself, talk continuously, and ask for an effect ("give me a fireball," "make it blue," "turn it into lightning") — it appears without touching a keyboard.
 - Built on the **Gemini Live API** (`client.aio.live`), a stateful bidirectional WebSocket session streaming camera + mic in and getting native audio + tool calls out — no polling, no separate ASR/TTS.
 - Gemini decides when to trigger generation via a real `apply_effect(description)` tool call, reasoned from the live conversation rather than keyword-matched.
 - Reuses the existing keyframe engine end-to-end (`generate_image(role="scene", refs=[...])`) — zero new pixel-synthesis code, only a new relay layer (`engine/live_api.py`) in front of it.
 
-### 🐍 The Python Core Engine
+### The Python Core Engine
 - **Dual-Model Router (`engine/shots/`)** — Streamlined API layers that coordinate Nano Banana 2 and Omni Flash triggers.
 - **Graphic Vision Critic (`engine/critic/vision.py`)** — Inspects video files for pixel tearing, color clipping, or prompt omissions.
 - **Typographic Layout Critic (`engine/critic/typography.py`)** — Python-native canvas checks calculating word wrapping, font size bounds, and contrast safety margins.
@@ -104,7 +104,7 @@ graph TD
 
 ---
 
-## 📄 License
+## License
 
 Released under the **MIT License**.
 

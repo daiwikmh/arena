@@ -18,6 +18,7 @@ import {
 	MoreHorizontal,
 	Menu,
 	Sparkles,
+	Radio,
 	ChevronLeft,
 	ChevronRight
 } from 'lucide-react'
@@ -28,34 +29,15 @@ interface LeftSidebarProps {
 	active: RailView
 	onSelect: (view: RailView) => void
 	onHomeClick?: () => void
+	onGoLive?: () => void
 }
 
-export default function LeftSidebar({ active, onSelect, onHomeClick }: LeftSidebarProps) {
+export default function LeftSidebar({ active, onSelect, onHomeClick, onGoLive }: LeftSidebarProps) {
 	const [collapsed, setCollapsed] = useState(false)
 
 	const menuItems = [
 		{ id: 'media' as RailView, label: 'Home', Icon: Grid },
 		{ id: 'storyboard' as RailView, label: 'Storyboard', Icon: Layers },
-		{ id: 'music' as RailView, label: 'Music & SFX', Icon: Music },
-		{ id: 'captions' as RailView, label: 'Subtitles', Icon: Film },
-		{ id: 'voice' as RailView, label: 'Voiceover', Icon: Mic },
-		{ id: 'text' as RailView, label: 'Designer Text', Icon: Type },
-	]
-
-	const mockPrimaryItems = [
-		{ label: 'Search', Icon: Search },
-		{ label: 'Explore', Icon: Compass },
-		{ label: 'Projects', Icon: FolderOpen },
-		{ label: 'Library', Icon: Library },
-	]
-
-	const secondaryItems = [
-		{ id: 'media' as RailView, label: 'All tools', Icon: Grid },
-		{ id: 'storyboard' as RailView, label: 'Storyboard Canvas', Icon: Layers },
-		{ id: 'media' as RailView, label: 'Image Generator', Icon: Sparkles },
-		{ id: 'storyboard' as RailView, label: 'Video Generator', Icon: Film },
-		{ id: 'voice' as RailView, label: 'Voice Generator', Icon: Mic },
-		{ id: 'text' as RailView, label: 'Designer Titles', Icon: Type },
 	]
 
 	if (collapsed) {
@@ -90,6 +72,12 @@ export default function LeftSidebar({ active, onSelect, onHomeClick }: LeftSideb
 				>
 					<Menu size={16} color={colors.textDim} />
 				</button>
+
+				{onGoLive && (
+					<button onClick={onGoLive} style={collapsedLiveBtnStyle} title="Go Live — voice-directed camera effects">
+						<Radio size={15} color={colors.accentText} />
+					</button>
+				)}
 
 				<div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center', marginTop: 12 }}>
 					{menuItems.map(({ id, label, Icon }) => {
@@ -166,10 +154,17 @@ export default function LeftSidebar({ active, onSelect, onHomeClick }: LeftSideb
 				</button>
 			</div>
 
+			{/* Go Live — the headline feature */}
+			{onGoLive && (
+				<button onClick={onGoLive} style={liveButtonStyle} title="Voice-directed camera effects, live">
+					<Radio size={15} style={{ marginRight: 8 }} strokeWidth={2.2} />
+					<span style={{ fontSize: 12.5, fontWeight: 700 }}>Go Live</span>
+				</button>
+			)}
+
 			{/* Main Links */}
-			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 18 }}>
-				{/* Map the active view */}
-				{menuItems.slice(0, 2).map(({ id, label, Icon }) => {
+			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+				{menuItems.map(({ id, label, Icon }) => {
 					const isActive = active === id
 					return (
 						<button
@@ -189,45 +184,6 @@ export default function LeftSidebar({ active, onSelect, onHomeClick }: LeftSideb
 						>
 							<Icon size={14} style={{ marginRight: 10 }} />
 							<span style={{ fontSize: 12, fontWeight: isActive ? 600 : 500 }}>{label}</span>
-						</button>
-					)
-				})}
-
-				{mockPrimaryItems.map(({ label, Icon }) => (
-					<button
-						key={label}
-						onClick={() => onSelect('media')}
-						style={{ ...navRowStyle, color: colors.textDim }}
-					>
-						<Icon size={14} style={{ marginRight: 10 }} />
-						<span style={{ fontSize: 12, fontWeight: 500 }}>{label}</span>
-					</button>
-				))}
-			</div>
-
-			{/* Divider */}
-			<div style={{ height: 1, backgroundColor: colors.border, margin: '0 4px 14px' }} />
-
-			{/* Secondary Active Tool Sections (All local tools patched) */}
-			<div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-				<span style={{ fontSize: 9.5, fontWeight: 600, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 10, marginBottom: 6 }}>
-					Interactive Tools
-				</span>
-
-				{secondaryItems.map((item, idx) => {
-					const isActive = active === item.id
-					return (
-						<button
-							key={idx}
-							onClick={() => onSelect(item.id)}
-							style={{
-								...navRowStyle,
-								background: isActive ? colors.surface3 : 'transparent',
-								color: isActive ? colors.accent : colors.textDim
-							}}
-						>
-							<item.Icon size={14} style={{ marginRight: 10 }} />
-							<span style={{ fontSize: 12, fontWeight: isActive ? 600 : 500 }}>{item.label}</span>
 						</button>
 					)
 				})}
@@ -315,6 +271,34 @@ const panelToggleBtnStyle: CSSProperties = {
 	borderRadius: radius.sm,
 	display: 'grid',
 	placeItems: 'center'
+}
+
+const liveButtonStyle: CSSProperties = {
+	width: '100%',
+	height: 36,
+	borderRadius: radius.md,
+	background: colors.accent,
+	color: colors.accentText,
+	border: 0,
+	display: 'flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	cursor: 'pointer',
+	marginBottom: 18,
+	boxShadow: '0 4px 12px rgba(172,191,164,0.25)',
+	transition: 'opacity 0.15s ease'
+}
+
+const collapsedLiveBtnStyle: CSSProperties = {
+	width: 34,
+	height: 34,
+	borderRadius: radius.pill,
+	background: colors.accent,
+	border: 0,
+	display: 'grid',
+	placeItems: 'center',
+	cursor: 'pointer',
+	marginBottom: 4
 }
 
 const navRowStyle: CSSProperties = {

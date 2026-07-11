@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Camera, Copy, Mic, MicOff, Send, Sparkles, Video, VideoOff } from 'lucide-react'
 import { colors, font, radius, shadow } from './studio/theme'
 import { baseUrl, liveSessionWebSocketUrl } from '../lib/api'
+import { floatToPcm16Base64, resample } from '../lib/liveAudio'
+import { buildEffectMask as computeEffectMask, drawLiveDisplay } from '../lib/liveCompositing'
 
 type Role = 'camera' | 'control'
 
@@ -9,49 +11,17 @@ interface LiveCameraProps {
 	projectId: string
 }
 
-interface TranscriptEntry {
-	id: string
-	role: 'user' | 'model'
-	text: string
-}
-
-interface EffectEntry {
-	id: string
-	description: string
-	frameUrl: string
-	costUsd: number
-}
-
-function resample(input: Float32Array, fromRate: number, toRate: number): Float32Array {
-	if (fromRate === toRate) return input
-	const ratio = fromRate / toRate
-	const outLength = Math.floor(input.length / ratio)
-	const out = new Float32Array(outLength)
-	for (let i = 0; i < outLength; i++) {
-		out[i] = input[Math.floor(i * ratio)]
-	}
-	return out
-}
-
-function floatToPcm16Base64(input: Float32Array): string {
-	const pcm = new Int16Array(input.length)
-	for (let i = 0; i < input.length; i++) {
-		const s = Math.max(-1, Math.min(1, input[i]))
-		pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-	}
-	const bytes = new Uint8Array(pcm.buffer)
-	let binary = ''
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-	return btoa(binary)
-}
+type FeedEntry =
+	| { id: string; kind: 'message'; role: 'user' | 'model'; text: string }
+	| { id: string; kind: 'effect'; description: string; costUsd: number }
 
 export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const [role, setRole] = useState<Role>('control')
 	const [connected, setConnected] = useState(false)
 	const [micOn, setMicOn] = useState(false)
 	const [cameraOn, setCameraOn] = useState(false)
-	const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
-	const [effects, setEffects] = useState<EffectEntry[]>([])
+	const [feed, setFeed] = useState<FeedEntry[]>([])
+	const [hasLiveFrame, setHasLiveFrame] = useState(false)
 	const [textInput, setTextInput] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [copied, setCopied] = useState(false)
@@ -62,6 +32,8 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const displayCanvasRef = useRef<HTMLCanvasElement>(null)
 	const liveFrameImgRef = useRef<HTMLImageElement>(new Image())
 	const effectImgRef = useRef<HTMLImageElement>(new Image())
+	const maskCanvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'))
+	const effectMaskReadyRef = useRef(false)
 	const audioCtxRef = useRef<AudioContext | null>(null)
 	const audioStreamRef = useRef<MediaStream | null>(null)
 
@@ -74,61 +46,94 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const cameraShareUrl =
 		typeof window !== 'undefined' ? `${window.location.origin}/live/${projectId}?role=camera` : ''
 
+	const buildEffectMask = useCallback((canvas: HTMLCanvasElement) => {
+		effectMaskReadyRef.current = computeEffectMask(
+			liveFrameImgRef.current,
+			effectImgRef.current,
+			maskCanvasRef.current,
+			canvas.width,
+			canvas.height,
+		)
+	}, [])
+
 	const drawDisplay = useCallback(() => {
 		const canvas = displayCanvasRef.current
 		if (!canvas) return
-		const ctx = canvas.getContext('2d')
-		if (!ctx) return
-		ctx.clearRect(0, 0, canvas.width, canvas.height)
-		if (liveFrameImgRef.current.complete && liveFrameImgRef.current.naturalWidth > 0) {
-			ctx.globalCompositeOperation = 'source-over'
-			ctx.globalAlpha = 1
-			ctx.drawImage(liveFrameImgRef.current, 0, 0, canvas.width, canvas.height)
-		}
-		if (effectImgRef.current.complete && effectImgRef.current.naturalWidth > 0) {
-			ctx.globalCompositeOperation = 'lighten'
-			ctx.globalAlpha = 0.92
-			ctx.drawImage(effectImgRef.current, 0, 0, canvas.width, canvas.height)
-			ctx.globalCompositeOperation = 'source-over'
-			ctx.globalAlpha = 1
-		}
+		drawLiveDisplay(canvas, liveFrameImgRef.current, maskCanvasRef.current, effectMaskReadyRef.current)
 	}, [])
 
 	useEffect(() => {
-		const ws = new WebSocket(liveSessionWebSocketUrl(projectId, role))
-		ws.binaryType = 'arraybuffer'
-		wsRef.current = ws
+		let cancelled = false
+		let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+		let attempt = 0
 
-		ws.onopen = () => setConnected(true)
-		ws.onclose = () => setConnected(false)
-		ws.onerror = () => setError('Connection to the live backend dropped.')
+		const connect = () => {
+			if (cancelled) return
+			const ws = new WebSocket(liveSessionWebSocketUrl(projectId, role))
+			ws.binaryType = 'arraybuffer'
+			wsRef.current = ws
 
-		ws.onmessage = (event) => {
-			if (typeof event.data !== 'string') return
-			const msg = JSON.parse(event.data)
+			ws.onopen = () => {
+				attempt = 0
+				setConnected(true)
+				setError(null)
+			}
 
-			if (msg.type === 'camera_frame') {
-				liveFrameImgRef.current.src = `data:image/jpeg;base64,${msg.data}`
-				liveFrameImgRef.current.onload = drawDisplay
-			} else if (msg.type === 'effect_applied') {
-				effectImgRef.current.src = `${baseUrl()}${msg.frame_url}`
-				effectImgRef.current.onload = drawDisplay
-				setEffects((prev) => [
-					...prev,
-					{ id: `${Date.now()}`, description: msg.description, frameUrl: msg.frame_url, costUsd: msg.cost_usd },
-				])
-			} else if (msg.type === 'transcript') {
-				setTranscript((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, role: msg.role, text: msg.text }])
-			} else if (msg.type === 'error') {
-				setError(msg.message)
+			ws.onclose = () => {
+				setConnected(false)
+				if (cancelled) return
+				attempt += 1
+				if (attempt > 2) setError('Connection dropped — reconnecting…')
+				const delay = Math.min(1000 * 2 ** (attempt - 1), 8000)
+				reconnectTimer = setTimeout(connect, delay)
+			}
+
+			ws.onerror = () => {
+				// onclose fires right after and handles reconnection; avoid duplicate state churn here
+			}
+
+			ws.onmessage = (event) => {
+				if (typeof event.data !== 'string') return
+				const msg = JSON.parse(event.data)
+
+				if (msg.type === 'camera_frame') {
+					liveFrameImgRef.current.src = `data:image/jpeg;base64,${msg.data}`
+					liveFrameImgRef.current.onload = drawDisplay
+					setHasLiveFrame(true)
+				} else if (msg.type === 'effect_applied') {
+					effectImgRef.current.src = `${baseUrl()}${msg.frame_url}`
+					effectImgRef.current.onload = () => {
+						const canvas = displayCanvasRef.current
+						if (canvas) buildEffectMask(canvas)
+						drawDisplay()
+					}
+					setFeed((prev) => [
+						...prev,
+						{ id: `${Date.now()}-${Math.random()}`, kind: 'effect', description: msg.description, costUsd: msg.cost_usd },
+					])
+				} else if (msg.type === 'transcript') {
+					setFeed((prev) => {
+						const last = prev[prev.length - 1]
+						if (last && last.kind === 'message' && last.role === msg.role) {
+							return [...prev.slice(0, -1), { ...last, text: last.text + msg.text }]
+						}
+						return [...prev, { id: `${Date.now()}-${Math.random()}`, kind: 'message', role: msg.role, text: msg.text }]
+					})
+				} else if (msg.type === 'error') {
+					setError(msg.message)
+				}
 			}
 		}
 
+		connect()
+
 		return () => {
-			ws.close()
+			cancelled = true
+			if (reconnectTimer) clearTimeout(reconnectTimer)
+			wsRef.current?.close()
 			wsRef.current = null
 		}
-	}, [projectId, role, drawDisplay])
+	}, [projectId, role, drawDisplay, buildEffectMask])
 
 	const startCamera = useCallback(async () => {
 		try {
@@ -211,7 +216,7 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 		const text = textInput.trim()
 		if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 		wsRef.current.send(JSON.stringify({ type: 'text', text }))
-		setTranscript((prev) => [...prev, { id: `${Date.now()}`, role: 'user', text }])
+		setFeed((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, kind: 'message', role: 'user', text }])
 		setTextInput('')
 	}, [textInput])
 
@@ -330,7 +335,7 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 							}}
 						>
 							<canvas ref={displayCanvasRef} width={960} height={720} style={{ width: '100%', height: '100%' }} />
-							{effects.length === 0 && (
+							{!hasLiveFrame && (
 								<div
 									style={{
 										position: 'absolute',
@@ -341,6 +346,7 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 										fontSize: 12,
 										textAlign: 'center',
 										padding: 20,
+										pointerEvents: 'none',
 									}}
 								>
 									Waiting for the camera device to join and start streaming…
@@ -409,39 +415,74 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 						<div style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: colors.textFaint, fontFamily: font.mono }}>
 							conversation
 						</div>
-						<div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-							{transcript.map((t) => (
-								<div
-									key={t.id}
-									style={{
-										alignSelf: t.role === 'user' ? 'flex-end' : 'flex-start',
-										maxWidth: '92%',
-										padding: '6px 10px',
-										borderRadius: radius.md,
-										background: t.role === 'user' ? colors.surface3 : colors.surface2,
-										border: `1px solid ${colors.border}`,
-										fontSize: 12,
-										color: t.role === 'model' ? colors.text : colors.textDim,
-									}}
-								>
-									{t.text}
-								</div>
-							))}
-							{effects.map((e) => (
-								<div
-									key={e.id}
-									style={{
-										padding: '6px 10px',
-										borderRadius: radius.md,
-										border: `1px solid ${colors.accent}`,
-										background: colors.accentDim,
-										fontSize: 11,
-										color: colors.accent,
-									}}
-								>
-									applied: {e.description} (${e.costUsd.toFixed(4)})
-								</div>
-							))}
+						<div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+							{feed.length === 0 && (
+								<span style={{ fontSize: 12, color: colors.textFaint }}>Say or type something to get started.</span>
+							)}
+							{feed.map((entry) =>
+								entry.kind === 'message' ? (
+									<div
+										key={entry.id}
+										style={{
+											display: 'flex',
+											flexDirection: 'column',
+											gap: 3,
+											alignSelf: entry.role === 'user' ? 'flex-end' : 'flex-start',
+											maxWidth: '90%',
+										}}
+									>
+										<span
+											style={{
+												fontSize: 9.5,
+												fontFamily: font.mono,
+												textTransform: 'uppercase',
+												letterSpacing: '0.05em',
+												color: colors.textFaint,
+												textAlign: entry.role === 'user' ? 'right' : 'left',
+											}}
+										>
+											{entry.role === 'user' ? 'you' : 'director'}
+										</span>
+										<div
+											style={{
+												padding: '8px 11px',
+												borderRadius: radius.md,
+												background: entry.role === 'user' ? colors.surface3 : colors.surface2,
+												border: `1px solid ${colors.border}`,
+												fontSize: 12.5,
+												lineHeight: 1.5,
+												color: entry.role === 'model' ? colors.text : colors.textDim,
+												whiteSpace: 'pre-wrap',
+												wordBreak: 'break-word',
+											}}
+										>
+											{entry.text}
+										</div>
+									</div>
+								) : (
+									<div
+										key={entry.id}
+										style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: 8,
+											padding: '8px 11px',
+											borderRadius: radius.md,
+											border: `1px solid ${colors.accent}`,
+											background: colors.accentDim,
+											fontSize: 11.5,
+											lineHeight: 1.4,
+											color: colors.accent,
+										}}
+									>
+										<Sparkles size={13} style={{ flex: 'none' }} />
+										<span style={{ flex: 1 }}>{entry.description}</span>
+										<span style={{ fontFamily: font.mono, fontSize: 10, color: colors.textFaint, flex: 'none' }}>
+											${entry.costUsd.toFixed(4)}
+										</span>
+									</div>
+								),
+							)}
 						</div>
 					</div>
 				</div>

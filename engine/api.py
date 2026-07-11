@@ -22,7 +22,7 @@ from engine.models import ModelRole
 from engine.planner import plan as run_planner
 from engine.prompt import DEFAULT_TEMPLATE_VERSION, compile_prompt
 from engine.repair import RepairPlan, plan_repair, repair_draft
-from engine.live_api import router as live_router
+from engine.live import router as live_router
 from engine.shots_api import router as shots_router
 
 _canvas_sync = WebsocketServer(auto_clean_rooms=False)

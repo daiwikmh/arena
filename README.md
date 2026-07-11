@@ -88,51 +88,19 @@ graph TD
 - 🎙️ **Voiceover & TTS** — Multiple announcer text-to-speech selectors, speed multipliers, and a **live microphone recorder** with active timer and wave level-meters.
 - 🔠 **Title Overlays** — Motion title overlay designers (Cinematic Acts, Lower Thirds, Cyberpunk Glitches) with tracking letter spacing, font scales, and timeline applying hooks.
 
+### 🎥 Arena Live — voice-directed camera effects
+- Point a camera at yourself, talk continuously, and ask for an effect ("give me a fireball," "make it blue," "turn it into lightning") — it appears without touching a keyboard.
+- Built on the **Gemini Live API** (`client.aio.live`), a stateful bidirectional WebSocket session streaming camera + mic in and getting native audio + tool calls out — no polling, no separate ASR/TTS.
+- Gemini decides when to trigger generation via a real `apply_effect(description)` tool call, reasoned from the live conversation rather than keyword-matched.
+- Reuses the existing keyframe engine end-to-end (`generate_image(role="scene", refs=[...])`) — zero new pixel-synthesis code, only a new relay layer (`engine/live_api.py`) in front of it.
+
 ### 🐍 The Python Core Engine
 - **Dual-Model Router (`engine/shots/`)** — Streamlined API layers that coordinate Nano Banana 2 and Omni Flash triggers.
 - **Graphic Vision Critic (`engine/critic/vision.py`)** — Inspects video files for pixel tearing, color clipping, or prompt omissions.
 - **Typographic Layout Critic (`engine/critic/typography.py`)** — Python-native canvas checks calculating word wrapping, font size bounds, and contrast safety margins.
 - **Self-Healing Layout Repair (`engine/repair.py`)** — Automated repair assistant which sifts layout errors, computes corrective edits, and updates scene documents on-the-fly.
+- **Live Relay (`engine/live_api.py`)** — FastAPI WebSocket endpoint owning the Gemini Live session per project, relaying camera/mic in and generated frames + transcripts out.
 
----
-
-## 🛠️ Quickstart
-
-### 1. Requirements
-Ensure you have **Node.js >= 22.12.0** and **Python >= 3.12** installed on your system.
-
-### 2. Frontend Launch (Astro Workspace)
-Navigate into the frontend folder, install dependencies, and run the development server:
-
-```bash
-cd web
-npm install
-npm run dev
-```
-*Your interactive studio will be active at [http://localhost:4321](http://localhost:4321).*
-
-### 3. Backend Launch (Python FastAPI Engine)
-Set up your python virtual environment, install requirements, and run FastAPI:
-
-```bash
-# Set up virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install required dependencies
-pip install -e .
-
-# Launch uvicorn
-uvicorn engine.api:app --reload --port 8000
-```
-*FastAPI specs will be active at [http://localhost:8000/docs](http://localhost:8000/docs).*
-
-### 4. Running Backend Verification
-Arena comes with an extensive suite of **103 deterministic tests** validating planners, critics, keyframers, and canvas layout boundaries:
-
-```bash
-pytest
-```
 
 ---
 

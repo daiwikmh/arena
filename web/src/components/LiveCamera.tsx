@@ -388,14 +388,14 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 					)}
 				</div>
 			) : (
-				<div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-					<div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 12, overflowY: 'auto' }}>
+				<div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+					<div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: 16, gap: 12 }}>
+						<div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 						<div
 							style={{
-								width: '100%',
-								maxHeight: '68vh',
+								maxWidth: '100%',
+								maxHeight: '100%',
 								aspectRatio: frameAspect,
-								margin: '0 auto',
 								borderRadius: radius.lg,
 								overflow: 'hidden',
 								border: `1px solid ${colors.borderStrong}`,
@@ -460,6 +460,7 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 									REC
 								</div>
 							)}
+						</div>
 						</div>
 
 						<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

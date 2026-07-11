@@ -6,7 +6,7 @@ Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) for scene volume. Gemini 3 Fl
 
 > This is a separate project from `DEVELOPMENT_PLAN.md` (Floor — on-device turn-taking). Nothing here touches that.
 
-> **⚠️ Superseded by `SHOTLIST_PLAN.md`.** The hackathon direction shifted from poster localization to conversational video orchestration (NB2 Lite → Omni Flash). The engine architecture — draft DAG, critic split, agent bar, FastAPI/Astro/tldraw stack — carries forward; the domain logic on this page (locale × format fan-out, typographic critic, `ProofFrame`) is being replaced. Kept here as a reference for the patterns that survived the pivot.
+> **⚠️ Superseded by `ARENA_PLAN.md`** (product name: **Arena**, formerly "Shotlist"). The hackathon direction shifted from poster localization to conversational video orchestration (NB2 Lite → Omni Flash). The engine architecture — draft DAG, critic split, agent bar, FastAPI/Astro/tldraw stack — carries forward; the domain logic on this page (locale × format fan-out, typographic critic, `ProofFrame`) is being replaced. Kept here as a reference for the patterns that survived the pivot.
 
 ---
 

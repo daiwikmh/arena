@@ -4,10 +4,11 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+import engine.shots.clip as shot_clip_mod
 import engine.shots.executor as shot_executor_mod
 import engine.shots_api as shots_api_mod
 from engine.cache import SceneCache
-from engine.models import ImageResult, Usage
+from engine.models import ClipResult, ImageResult, Usage
 
 SHOT_BODY = {
     "subject": "a glass marble at the top of a wooden chain-reaction track",
@@ -61,6 +62,29 @@ class FakeGenerator:
 def fake_generator(monkeypatch):
     fake = FakeGenerator()
     monkeypatch.setattr(shot_executor_mod, "generate_image", fake)
+    return fake
+
+
+class FakeClipGenerator:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def __call__(self, prompt_text, *, task="image_to_video", keyframe=None, aspect_ratio=None, duration_sec=None, previous_interaction_id=None, role="animate"):
+        self.calls += 1
+        return ClipResult(
+            video_bytes=f"clip-bytes-{self.calls}".encode(),
+            video_uri=None,
+            mime_type="video/mp4",
+            usage=None,
+            model_id="gemini-omni-flash-preview",
+            interaction_id=f"clip-ixn-{self.calls}",
+        )
+
+
+@pytest.fixture
+def fake_clip_generator(monkeypatch):
+    fake = FakeClipGenerator()
+    monkeypatch.setattr(shot_clip_mod, "generate_clip", fake)
     return fake
 
 
@@ -144,4 +168,84 @@ def test_keyframe_image_404s_before_generation(client):
 def test_unknown_shot_404s(client):
     client.get("/projects/proj-1")
     r = client.post("/projects/proj-1/shots/not-a-real-shot/keyframe")
+    assert r.status_code == 404
+
+
+def test_clip_requires_an_approved_keyframe_first(client, fake_clip_generator):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    r = client.post(f"/projects/proj-1/shots/{shot_id}/clip")
+    assert r.status_code == 400
+    assert fake_clip_generator.calls == 0
+
+
+def test_generate_clip_after_keyframe_then_fetch_video(client, fake_generator, fake_clip_generator):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    client.post(f"/projects/proj-1/shots/{shot_id}/keyframe")
+
+    r = client.post(f"/projects/proj-1/shots/{shot_id}/clip")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "generated"
+    assert body["delivery"] == "bytes"
+    assert body["draft_id"] is not None
+    assert body["cost_usd"] == pytest.approx(6 * 5792 * 17.50 / 1_000_000)
+    assert fake_clip_generator.calls == 1
+
+    r = client.get(f"/projects/proj-1/shots/{shot_id}/clip/video")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "video/mp4"
+    assert r.content == b"clip-bytes-1"
+
+    summary = client.get("/projects/proj-1").json()
+    assert summary["shots"][0]["has_clip"] is True
+    assert summary["shots"][0]["clip_draft_id"] == body["draft_id"]
+
+
+def test_clip_draft_parent_is_the_keyframe_draft(client, fake_generator, fake_clip_generator):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    keyframe = client.post(f"/projects/proj-1/shots/{shot_id}/keyframe").json()
+    clip = client.post(f"/projects/proj-1/shots/{shot_id}/clip").json()
+
+    project = shots_api_mod._get_or_create_project("proj-1")
+    shot_state = project.shots[shot_id]
+    assert shot_state.clip_draft.parent == keyframe["draft_id"]
+    assert shot_state.clip_draft.id == clip["draft_id"]
+
+
+def test_regenerating_clip_for_same_keyframe_hits_cache(client, fake_generator, fake_clip_generator):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    client.post(f"/projects/proj-1/shots/{shot_id}/keyframe")
+
+    first = client.post(f"/projects/proj-1/shots/{shot_id}/clip").json()
+    assert first["status"] == "generated"
+    assert fake_clip_generator.calls == 1
+
+    second = client.post(f"/projects/proj-1/shots/{shot_id}/clip").json()
+    assert second["status"] == "cached"
+    assert second["cost_usd"] == 0.0
+    assert second["draft_id"] == first["draft_id"]
+    assert fake_clip_generator.calls == 1
+
+
+def test_clip_generation_surfaces_errors_without_500(client, fake_generator, monkeypatch):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    client.post(f"/projects/proj-1/shots/{shot_id}/keyframe")
+
+    async def failing(*args, **kwargs):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+    monkeypatch.setattr(shot_clip_mod, "generate_clip", failing)
+
+    r = client.post(f"/projects/proj-1/shots/{shot_id}/clip")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "error"
+    assert body["draft_id"] is None
+    assert "429" in body["error"]
+
+
+def test_clip_video_404s_before_generation(client, fake_generator):
+    shot_id = client.post("/projects/proj-1/shots", json=SHOT_BODY).json()["shot_id"]
+    client.post(f"/projects/proj-1/shots/{shot_id}/keyframe")
+    r = client.get(f"/projects/proj-1/shots/{shot_id}/clip/video")
     assert r.status_code == 404

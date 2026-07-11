@@ -6,6 +6,7 @@ import Timeline from './studio/Timeline'
 import DirectorChat from './studio/DirectorChat'
 import StoryboardView from './studio/StoryboardView'
 import { emptyShot, type DirectorMessage, type Shot } from './studio/types'
+import { createShot, defaultShotSpec, generateKeyframe, shotKeyframeImageUrl } from '../lib/shotsApi'
 
 interface StudioEditorProps {
 	projectId: string
@@ -14,7 +15,7 @@ interface StudioEditorProps {
 const OPENING_MESSAGE: DirectorMessage = {
 	id: 'opening',
 	role: 'director',
-	text: "Hi! I'm your AI director. Describe a shot and I'll add it to the timeline — approve a keyframe before I animate it.",
+	text: "Hi! I'm your AI director. Describe a shot and I'll generate a keyframe with Nano Banana 2 Lite — approve it before I animate it.",
 }
 
 export default function StudioEditor({ projectId }: StudioEditorProps) {
@@ -32,6 +33,10 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 		setMessages((prev) => [...prev, { id: `${role}-${Date.now()}-${Math.random()}`, role, text }])
 	}, [])
 
+	const patchShot = useCallback((id: string, patch: Partial<Shot>) => {
+		setShots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+	}, [])
+
 	const handleAddShot = useCallback(() => {
 		setShots((prev) => {
 			const shot = emptyShot(prev.length)
@@ -41,45 +46,71 @@ export default function StudioEditor({ projectId }: StudioEditorProps) {
 	}, [])
 
 	const handleSend = useCallback(
-		(text: string) => {
+		async (text: string) => {
 			addMessage('user', text)
 			setBusy(true)
 
-			setTimeout(() => {
-				setShots((prev) => {
-					if (!activeShot || activeShot.status === 'empty') {
-						const shot: Shot = { ...emptyShot(prev.length), label: text.slice(0, 40) }
-						setActiveShotId(shot.id)
+			try {
+				if (!activeShot || activeShot.status === 'empty') {
+					const label = text.slice(0, 40)
+					const localId = activeShot?.id ?? emptyShot(shots.length).id
+
+					setShots((prev) => {
+						const draft: Shot = {
+							...(activeShot ?? emptyShot(prev.length)),
+							id: localId,
+							label,
+							status: 'generating_keyframe',
+						}
+						return prev.some((s) => s.id === localId)
+							? prev.map((s) => (s.id === localId ? draft : s))
+							: [...prev, draft]
+					})
+					setActiveShotId(localId)
+
+					const created = await createShot(projectId, defaultShotSpec(text))
+					const keyframe = await generateKeyframe(projectId, created.shot_id)
+
+					if (keyframe.status === 'error') {
+						patchShot(localId, { status: 'error', backendShotId: created.shot_id })
+						addMessage('director', `Couldn't generate a keyframe for "${label}": ${keyframe.error}`)
+					} else {
+						patchShot(localId, {
+							status: 'keyframe_ready',
+							backendShotId: created.shot_id,
+							keyframeUrl: shotKeyframeImageUrl(projectId, created.shot_id),
+						})
 						addMessage(
 							'director',
-							`Added "${shot.label}" to the timeline. This build doesn't call NB2 Lite yet — ` +
-								`approving a keyframe here is where that generation call plugs in.`,
+							`Keyframe ${keyframe.status} for "${label}" ($${keyframe.cost_usd.toFixed(4)}). ` +
+								`Approve it in the storyboard — animating it with Omni Flash is Phase 2, not wired up yet.`,
 						)
-						return [...prev, shot]
 					}
+					return
+				}
 
-					if (activeShot.turnsUsed >= activeShot.maxTurns) {
-						addMessage(
-							'director',
-							`${activeShot.label} has used all ${activeShot.maxTurns} conversational edits Omni Flash ` +
-								`allows on one interaction chain. I'd start a fresh take from the current clip rather than push a 4th edit.`,
-						)
-						return prev
-					}
-
+				if (activeShot.turnsUsed >= activeShot.maxTurns) {
 					addMessage(
 						'director',
-						`Noted for ${activeShot.label}: "${text}". Turn ${activeShot.turnsUsed + 1} of ` +
-							`${activeShot.maxTurns} — this is where the edit would chain via previous_interaction_id.`,
+						`${activeShot.label} has used all ${activeShot.maxTurns} conversational edits Omni Flash ` +
+							`allows on one interaction chain. I'd start a fresh take from the current clip rather than push a 4th edit.`,
 					)
-					return prev.map((s) =>
-						s.id === activeShot.id ? { ...s, turnsUsed: s.turnsUsed + 1, status: 'editing' as const } : s,
-					)
-				})
+					return
+				}
+
+				addMessage(
+					'director',
+					`Noted for ${activeShot.label}: "${text}". Turn ${activeShot.turnsUsed + 1} of ` +
+						`${activeShot.maxTurns} — this is where the edit chains via previous_interaction_id once Omni Flash is wired in.`,
+				)
+				patchShot(activeShot.id, { turnsUsed: activeShot.turnsUsed + 1, status: 'editing' })
+			} catch (err) {
+				addMessage('director', err instanceof Error ? `Something went wrong: ${err.message}` : 'Something went wrong.')
+			} finally {
 				setBusy(false)
-			}, 500)
+			}
 		},
-		[activeShot, addMessage],
+		[activeShot, addMessage, patchShot, projectId, shots.length],
 	)
 
 	const handleStepBack = useCallback(() => setCurrentTimeSec((t) => Math.max(0, t - 1)), [])

@@ -1,6 +1,6 @@
-# Shotlist
+# Arena
 
-*(working name — same repo, replaces Presscheck's direction; rename freely)*
+*(formerly "Shotlist" — same repo, same direction, renamed)*
 
 **A conversational video-direction engine. A cheap keyframe (Nano Banana 2 Lite) gates an expensive animation (Gemini Omni Flash); the agent proposes, the human approves, and only approved frames get animated. Multi-shot timelines assemble the same way a draft DAG assembles proofs — by branching, never overwriting.**
 
@@ -55,8 +55,9 @@ Verified two ways this session: against Google's own launch post and docs, **and
 | | Nano Banana 2 Lite | Gemini Omni Flash |
 |---|---|---|
 | Model ID | `gemini-3.1-flash-lite-image` | `gemini-omni-flash-preview` |
-| Cost | $0.0336 / image (1K) | **$0.10 / second** standard, **$0.05 / second** batch |
-| Latency | ~4s | not published; **Gate F measures it** |
+| Cost | ~$0.047 / image (1K), **measured**, see below | **$0.10 / second** standard, **$0.05 / second** batch |
+| Latency (serial) | **4.50s measured** — matches marketing | not published; **Gate F measures it** |
+| Latency (concurrent) | **severely degraded, 28–96s per call under load — see below** | not yet measured |
 | Max output | one still frame | **10 seconds**, "longer coming soon" |
 | Multi-turn | `previous_interaction_id`, no stated cap | `previous_interaction_id`, **capped at 3 sequential edits** |
 | Inputs | text + up to 14 object refs | text, image, video (video refs ≤3s **not reliably processed**) |
@@ -68,20 +69,34 @@ Verified two ways this session: against Google's own launch post and docs, **and
 
 **The second load-bearing row is "character consistency issues across scene changes/pans."** That is Google's own stated limitation, and it sits directly on top of the brief's bar — *"respects physical world dynamics."* The continuity critic (§5) exists specifically because this is a named, acknowledged weakness of the model we're chaining into, not a hypothetical.
 
+### Gate A results — run for real against NB2 Lite, this session
+
+Gate A (inherited from `PRESSCHECK_PLAN.md`, and directly applicable here since Arena also generates keyframes on NB2 Lite) finally ran against a working key. Three real findings, none of them the assumption the plan launched with:
+
+1. **Real cost is ~$0.047/image, not $0.0336.** Measured `candidates_tokens` averaged ~1,550 across 40+ real calls (single call: 1,548; 30-way burst: 1,494–1,624), not the ~1,120 the original math assumed. At $30/1M output tokens that's **$0.0465/image**, about 38% higher than planned. Every cost figure in this document using $0.0336 is now a floor, not the real number — see the corrected model below.
+2. **Serial latency matches the marketing claim exactly: 4.50s for one image, uncontended.** The "~4 seconds" figure is real. This is good news the plan should say plainly rather than bury under the bad news below.
+3. **Concurrency causes severe, non-linear latency degradation — with no errors to catch it.** 30 simultaneous calls: 0 failures, 0 rate-limit rejections, but average latency rose to ~35s (range 28–38s) — roughly 8× the serial baseline. A *smaller* burst of 10 concurrent calls was measured even worse (avg 73.9s, range 46–96s), which is not what a clean "more concurrency, more queueing" model would predict — the degradation is real but noisy, not a smooth curve we can extrapolate from two data points. **The practical implication: this API does not protect itself with 429s under load — it silently gets slow instead.** The `max_concurrent`/`TokenBucket` scheduler already built into `engine/executor.py` and `engine/shots/executor.py` is not a nice-to-have; it is the only thing standing between this product and an unpredictable multi-minute hang during a live demo. **Recommendation: cap concurrency low (start at 3–5) and measure again before trusting any higher number.**
+
+One more finding, unglamorous but load-bearing for repair/chaining: **every call — serial and concurrent — returned `interaction_id: None`.** `engine/models.py`'s `generate_image()` goes through the plain `generate_content()` surface, not `client.interactions.create()`. If `previous_interaction_id`-based branching (§7 of `PRESSCHECK_PLAN.md`, inherited into this plan's repair story) requires a real interaction ID, **the current image-generation code path cannot produce one.** This needs resolving before Phase 6 (repair) is trusted: either switch keyframe generation to the Interactions API surface, or accept that keyframe repair branches by content-address alone (already true and sufficient) and drop the interaction-chaining assumption for images specifically — Omni Flash's `client.interactions.create()` path (verified separately, §11) is unaffected and still the right surface for video.
+
+Not retested (explicit instruction: no further image-generation calls this session) — the IPM ceiling itself is still not pinned to a number, only bracketed: 30 concurrent succeeds without hard failure, but "succeeds" now means "eventually, slowly," which changes what the number is even for.
+
 ### Cost model
 
 ```
-1 keyframe   (NB2 Lite, 1K)             $0.0336   ~4s
+1 keyframe   (NB2 Lite, 1K)             $0.047    measured — 4.5s serial, degrades hard under concurrency
 1 base clip  (Omni Flash, 10s)          $1.00     standard  /  $0.50 batch
 1 edit turn  (Omni Flash, same 10s)     $1.00     — same per-second rate, new interaction
 
 5-shot timeline, one edit pass per shot:
-  5 keyframes     5 × $0.0336  =  $0.17
+  5 keyframes     5 × $0.047   =  $0.24
   5 base clips    5 × $1.00    =  $5.00
   5 edit turns    5 × $1.00    =  $5.00
                                   ───────
-                                  $10.17 per 5-shot timeline
+                                  $10.24 per 5-shot timeline
 ```
+
+The keyframe-vs-clip cost ratio barely moves (still ~21×, not the ~30× originally stated) — the core "cheap gates expensive" argument survives the correction intact. What changes is the demo's throughput claim: don't promise N keyframes "in under a minute" without re-measuring at the concurrency level actually used, because the one data point available says that promise is currently false.
 
 Say the $0.17 vs $10.17 split out loud in the demo. It is the whole argument for why keyframe iteration happens on NB2 Lite and nowhere else — regenerating a keyframe 10 times to get it right costs 34 cents; regenerating a *clip* 10 times costs ten dollars.
 
@@ -194,7 +209,7 @@ Push a 4th sequential edit past Google's stated cap on the same interaction chai
 
 **Phase 1 — keyframe generation. ✅ DONE.** `ShotSpec` added to `engine/ir.py` (`duration_sec` capped at 10 — Omni Flash's launch limit enforced at the type level). `engine/shots/` mirrors `engine/prompt/`: `templates.py` compiles camera movement into a composition bias (`pan_right` → subject left, room opens right — same "geometry compiles into the prompt" trick as the old negative-space directive), `compile.py`, `executor.py` reuses `TokenBucket` and `generate_image(role="scene")` from the poster executor unchanged. *Verify:* 72/72 tests green — golden snapshots (zero API calls, one shot per camera movement, opposite-pan / opposite-tilt bias confirmed), plus mocked-executor tests confirming editing one shot's action text regenerates only that shot.
 
-**Phase 2 — single-shot animation.** Wire `image_to_video`. One shot, no timeline yet. *Verify:* Gate E passes on a real call.
+**Phase 2 — single-shot animation. ✅ CODE DONE, GATE E STILL PENDING.** `generate_clip()` added to `engine/models.py`, wired to the real `client.interactions.create()` surface (verified against the installed SDK's `CreateModelInteractionParam`/`ImageContentParam`/`ModelOutputStep`/`VideoContent` shapes — not guessed from docs alone). `engine/shots/clip.py` mirrors the keyframe executor: content-addressed cache keyed on `(shot, keyframe_draft_id, template, model)` — so re-approving the *same* keyframe hits cache, but a new keyframe correctly invalidates the clip. `build_clip_draft()` sets `Draft.parent = keyframe_draft_id`, making the plan's central DAG claim (§5) concrete rather than aspirational. `POST /projects/{id}/shots/{id}/clip` and `GET .../clip/video` wired into the API. *Verify:* 98/98 tests green, all mocked — **zero real calls made, by instruction.** Gate E (does the animated clip actually respect the keyframe) cannot be marked passed until a real `image_to_video` call runs. Two things Gate E must also settle that the mocks can't: whether `data` on `ImageContentParam` wants raw bytes or a pre-base64-encoded string (implemented as raw bytes, unverified), and what `interaction.steps` actually looks like in a live response (parsing logic is real but untested against the true wire shape).
 
 **Phase 3 — conversational edit loop.** `previous_interaction_id` chaining, turn-tracking, the Gate H fallback behavior implemented for real. *Verify:* three sequential edits succeed; the fourth is handled deliberately, not by accident.
 
@@ -225,6 +240,8 @@ The number to say out loud is **$0.17 vs $10.17** — what iteration would have 
 | Character consistency drifts across scene changes (Google's own stated limitation) | Multi-shot narrative coherence suffers | This is exactly what the continuity critic exists to catch — treat every drift the critic finds as validation of the architecture, not an embarrassment |
 | Region gating (EEA) blocks video editing | Demo breaks depending on account region | Check the account's region before relying on `edit` task mode live |
 | Cost runs away if keyframe iteration happens on Omni Flash instead of NB2 Lite | Budget gone in minutes | Enforce in code: the agent is only ever allowed to call `image_to_video`/`edit` on an already-approved keyframe, never mid-iteration |
+| ~~IPM ceiling unknown~~ **Confirmed worse than "unknown": no hard ceiling observed, but severe silent latency degradation under any concurrency** | A demo firing several keyframes at once may hang unpredictably for 30–95s with no error to catch or explain it | `max_concurrent` scheduler already built; cap it low (3–5) by default and re-measure before raising it. Never demo live at 10+ concurrent without a rehearsed fallback |
+| `interaction_id` is `None` on every image generation call (confirmed, this session) | `previous_interaction_id` keyframe branching in the repair story cannot work as designed over the current code path | Resolve before Phase 6: switch keyframe generation to `client.interactions.create()`, or drop interaction-chaining for images and rely on content-address branching alone (already implemented, already sufficient on its own) |
 
 ---
 

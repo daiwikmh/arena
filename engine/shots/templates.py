@@ -41,3 +41,31 @@ def render(shot: ShotSpec) -> str:
         "Still photography framing, no motion blur, no text, no logos, no watermarks."
     )
     return " ".join(clauses)
+
+
+CAMERA_MOTION_INSTRUCTION: dict[CameraMovement, str] = {
+    "static": "hold the camera still",
+    "pan_left": "pan the camera smoothly to the left",
+    "pan_right": "pan the camera smoothly to the right",
+    "tilt_up": "tilt the camera smoothly upward",
+    "tilt_down": "tilt the camera smoothly downward",
+    "zoom_in": "zoom the camera in smoothly",
+    "zoom_out": "zoom the camera out smoothly",
+    "tracking": "track laterally alongside the subject",
+    "handheld": "add subtle handheld camera movement",
+}
+
+
+def render_clip_prompt(shot: ShotSpec) -> str:
+    clauses = [
+        f"Animate this reference frame: {shot.action}.",
+        f"Camera: {CAMERA_MOTION_INSTRUCTION[shot.camera_movement]}.",
+        f"Duration: {shot.duration_sec} seconds.",
+    ]
+    if shot.excludes:
+        clauses.append("Exclude: " + ", ".join(shot.excludes) + ".")
+    clauses.append(
+        "Preserve the composition, lighting, and palette of the reference frame "
+        "exactly; animate motion only."
+    )
+    return " ".join(clauses)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import mimetypes
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,19 @@ def compute_repair_key(parent_id: str, variant_index: int, repair_note: str) -> 
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def compute_clip_cache_key(
+    shot: ShotSpec, keyframe_draft_id: str, template_version: str, model_id: str
+) -> str:
+    payload = {
+        "shot": json.loads(shot.model_dump_json()),
+        "keyframe_draft_id": keyframe_draft_id,
+        "template_version": template_version,
+        "model_id": model_id,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 @dataclass(frozen=True)
 class CachedScene:
     key: str
@@ -53,8 +67,8 @@ class SceneCache:
         return self.root / key[:2]
 
     def _image_path(self, key: str, mime_type: str) -> Path:
-        ext = "png" if "png" in mime_type else "jpg"
-        return self._dir_for(key) / f"{key}.{ext}"
+        ext = mimetypes.guess_extension(mime_type) or ".bin"
+        return self._dir_for(key) / f"{key}{ext}"
 
     def _meta_path(self, key: str) -> Path:
         return self._dir_for(key) / f"{key}.json"

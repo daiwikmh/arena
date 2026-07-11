@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Lock } from 'lucide-react'
+import { Clapperboard } from 'lucide-react'
 import gsap from 'gsap'
-import { createCampaign } from '../lib/api'
-import { DEFAULT_BRAND, DEFAULT_FORMATS, DEFAULT_LOCALES } from '../lib/catalog'
+import { getProject } from '../lib/shotsApi'
 
 const VIDEO_SRC =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260510_060007_60275ce7-030c-4668-a160-8f364ec537d3.mp4'
 
-const NAV_LINKS = ['PIPELINE', 'SCRIPTS', 'GALLERY', 'DOCS']
+const NAV_LINKS = ['DIRECT', 'SHOTS', 'GALLERY', 'DOCS']
+
+function newProjectId(): string {
+  if ('randomUUID' in crypto) return crypto.randomUUID()
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
 
 export default function Hero() {
   const videoBgRef = useRef<HTMLDivElement>(null)
@@ -55,17 +59,14 @@ export default function Hero() {
     if (videoRef.current) videoRef.current.playbackRate = 1.25
   }
 
-  const onLocalize = async () => {
+  const onDirect = async () => {
     if (creating) return
     setCreating(true)
     setCreateError(null)
     try {
-      const { id } = await createCampaign({
-        brand: DEFAULT_BRAND,
-        availableLocales: DEFAULT_LOCALES,
-        availableFormats: DEFAULT_FORMATS,
-      })
-      window.location.href = `/editor/${id}`
+      const id = newProjectId()
+      await getProject(id)
+      window.location.href = `/studio/${id}`
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Could not reach the engine.')
       setCreating(false)
@@ -93,7 +94,7 @@ export default function Hero() {
 
       <header className="fixed top-0 inset-x-0 z-50 px-10 py-8 flex justify-between items-center">
         <div className="text-[17px] font-semibold tracking-tight">
-          PressCheck<sup>TM</sup>
+          Arena<sup>TM</sup>
         </div>
 
         <nav className="liquid-glass rounded-full px-2 py-2 flex items-center gap-1">
@@ -131,9 +132,9 @@ export default function Hero() {
             letterSpacing: '-0.02em',
           }}
         >
-          <span className="block text-white">Type that never breaks.</span>
+          <span className="block text-white">Direct the shot.</span>
           <span className="block" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            Every script. Every canvas.
+            Skip the timeline.
           </span>
         </h1>
       </div>
@@ -145,21 +146,18 @@ export default function Hero() {
       >
         <p className="max-w-[620px] text-[15px] leading-relaxed text-center">
           <span className="text-white">
-            Generate, verify, and repair posters in 22 Indian languages — every glyph checked
-            against ground truth, never guessed.
+            Describe a shot and approve its frame for pennies before anything gets animated —
+            swap elements, shift the light, extend the story, all by saying so.
           </span>
-          <span className="text-white/55">
-            {' '}
-            One prompt in, print-ready artwork out.
-          </span>
+          <span className="text-white/55"> One conversation, a finished multi-shot scene.</span>
         </p>
 
         <button
-          onClick={onLocalize}
+          onClick={onDirect}
           disabled={creating}
           className="bg-white text-black text-[15px] font-medium rounded-full px-8 py-3.5 transition-all duration-200 hover:scale-[1.03] hover:shadow-[0_0_32px_4px_rgba(255,255,255,0.2)] active:scale-[0.97] disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none"
         >
-          {creating ? 'Opening the canvas…' : 'Localize a poster'}
+          {creating ? 'Opening the studio…' : 'Direct a scene'}
         </button>
 
         {createError && (
@@ -167,9 +165,9 @@ export default function Hero() {
         )}
 
         <div className="flex items-center gap-2">
-          <Lock size={13} strokeWidth={1.5} className="text-white/70" />
+          <Clapperboard size={13} strokeWidth={1.5} className="text-white/70" />
           <span className="text-[11px] font-medium tracking-[0.14em] text-white/70">
-            GLYPH-PERFECT. ZERO BROKEN TEXT.
+            PHYSICS-CHECKED. EVERY SWAP VERIFIED.
           </span>
         </div>
       </div>

@@ -56,9 +56,18 @@ SYSTEM_INSTRUCTION = (
     "\n"
     "Always write a single complete description of the resulting scene, not a "
     "diff — the full picture, so it can be regenerated from scratch every time. "
-    "Keep everything about the scene that the user didn't ask to change exactly "
-    "as it already is. For anything that isn't a request to change the scene — "
-    "greetings, questions, filler — just respond normally and do not call the tool."
+    "\n\n"
+    "Stay faithful to what was actually asked. Add the specific thing the user "
+    "requested plus only its *direct* physical consequences (the light it casts, "
+    "the shadows it throws, the surface it touches) — do not invent an entire "
+    "dramatized scene around it. If they ask for 'dark clouds,' give dark clouds "
+    "and the dimming they cause; do not also add rain, downpour, and a twilight "
+    "storm unless they asked for those. Keep everything about the scene the user "
+    "didn't ask to change — the people, their poses, the furniture, the layout, "
+    "the framing — exactly as it already is. "
+    "\n\n"
+    "For anything that isn't a request to change the scene — greetings, "
+    "questions, filler — just respond normally and do not call the tool."
 )
 
 

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Camera, Copy, Mic, MicOff, Send, Sparkles, Video, VideoOff } from 'lucide-react'
+import { Camera, Circle, Copy, Download, Mic, MicOff, Send, Sparkles, Square, Video } from 'lucide-react'
 import { colors, font, radius, shadow } from './studio/theme'
 import { baseUrl, liveSessionWebSocketUrl } from '../lib/api'
 import { floatToPcm16Base64, resample } from '../lib/liveAudio'
-import { buildEffectMask as computeEffectMask, drawLiveDisplay } from '../lib/liveCompositing'
+import { drawEffectMask, drawLiveFrame, targetSize } from '../lib/liveCompositing'
+import { LiveRecorder } from '../lib/liveRecorder'
+
+const EFFECT_FILTER_ID = 'effect-turbulence'
 
 type Role = 'camera' | 'control'
 
@@ -22,14 +25,19 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const [cameraOn, setCameraOn] = useState(false)
 	const [feed, setFeed] = useState<FeedEntry[]>([])
 	const [hasLiveFrame, setHasLiveFrame] = useState(false)
+	const [hasEffect, setHasEffect] = useState(false)
+	const [frameAspect, setFrameAspect] = useState('4 / 3')
 	const [textInput, setTextInput] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [copied, setCopied] = useState(false)
+	const [recording, setRecording] = useState(false)
+	const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
 	const wsRef = useRef<WebSocket | null>(null)
 	const videoRef = useRef<HTMLVideoElement>(null)
 	const captureCanvasRef = useRef<HTMLCanvasElement>(null)
 	const displayCanvasRef = useRef<HTMLCanvasElement>(null)
+	const effectCanvasRef = useRef<HTMLCanvasElement>(null)
 	const liveFrameImgRef = useRef<HTMLImageElement>(new Image())
 	const effectImgRef = useRef<HTMLImageElement>(
 		(() => {
@@ -38,10 +46,10 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 			return img
 		})(),
 	)
-	const maskCanvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'))
-	const effectMaskReadyRef = useRef(false)
+	const maskScratchRef = useRef<HTMLCanvasElement>(document.createElement('canvas'))
 	const audioCtxRef = useRef<AudioContext | null>(null)
 	const audioStreamRef = useRef<MediaStream | null>(null)
+	const recorderRef = useRef<LiveRecorder>(new LiveRecorder())
 
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search)
@@ -52,25 +60,37 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const cameraShareUrl =
 		typeof window !== 'undefined' ? `${window.location.origin}/live/${projectId}?role=camera` : ''
 
-	const buildEffectMask = useCallback((canvas: HTMLCanvasElement) => {
-		try {
-			effectMaskReadyRef.current = computeEffectMask(
-				liveFrameImgRef.current,
-				effectImgRef.current,
-				maskCanvasRef.current,
-				canvas.width,
-				canvas.height,
-			)
-		} catch (err) {
-			effectMaskReadyRef.current = false
-			setError(err instanceof Error ? `Couldn't display the effect: ${err.message}` : "Couldn't display the effect.")
-		}
-	}, [])
-
-	const drawDisplay = useCallback(() => {
+	const drawLive = useCallback(() => {
 		const canvas = displayCanvasRef.current
 		if (!canvas) return
-		drawLiveDisplay(canvas, liveFrameImgRef.current, maskCanvasRef.current, effectMaskReadyRef.current)
+		drawLiveFrame(canvas, liveFrameImgRef.current)
+		const size = targetSize(liveFrameImgRef.current)
+		if (size) setFrameAspect(`${size.width} / ${size.height}`)
+	}, [])
+
+	const applyEffect = useCallback(() => {
+		const canvas = effectCanvasRef.current
+		if (!canvas) return
+		try {
+			const live = liveFrameImgRef.current
+			const effect = effectImgRef.current
+			if (live.complete && live.naturalWidth > 0) {
+				// Composite: keep only the pixels the effect changed, live feed shows through the rest.
+				drawEffectMask(canvas, live, effect, maskScratchRef.current)
+			} else {
+				// No live feed to composite against (camera not joined) — show the full generated scene.
+				const size = targetSize(effect)
+				if (size) {
+					canvas.width = size.width
+					canvas.height = size.height
+					canvas.getContext('2d')?.drawImage(effect, 0, 0, size.width, size.height)
+					setFrameAspect(`${size.width} / ${size.height}`)
+				}
+			}
+			setHasEffect(true)
+		} catch (err) {
+			setError(err instanceof Error ? `Couldn't display the effect: ${err.message}` : "Couldn't display the effect.")
+		}
 	}, [])
 
 	useEffect(() => {
@@ -108,16 +128,12 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 				const msg = JSON.parse(event.data)
 
 				if (msg.type === 'camera_frame') {
+					liveFrameImgRef.current.onload = drawLive
 					liveFrameImgRef.current.src = `data:image/jpeg;base64,${msg.data}`
-					liveFrameImgRef.current.onload = drawDisplay
 					setHasLiveFrame(true)
 				} else if (msg.type === 'effect_applied') {
+					effectImgRef.current.onload = applyEffect
 					effectImgRef.current.src = `${baseUrl()}${msg.frame_url}`
-					effectImgRef.current.onload = () => {
-						const canvas = displayCanvasRef.current
-						if (canvas) buildEffectMask(canvas)
-						drawDisplay()
-					}
 					setFeed((prev) => [
 						...prev,
 						{ id: `${Date.now()}-${Math.random()}`, kind: 'effect', description: msg.description, costUsd: msg.cost_usd },
@@ -144,12 +160,16 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 			wsRef.current?.close()
 			wsRef.current = null
 		}
-	}, [projectId, role, drawDisplay, buildEffectMask])
+	}, [projectId, role, drawLive, applyEffect])
 
 	const startCamera = useCallback(async () => {
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: 'environment' } },
+				video: {
+					facingMode: { ideal: 'environment' },
+					width: { ideal: 1920 },
+					height: { ideal: 1080 },
+				},
 			})
 			if (videoRef.current) {
 				videoRef.current.srcObject = stream
@@ -174,7 +194,7 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 							if (blob) blob.arrayBuffer().then((buf) => ws.send(buf))
 						},
 						'image/jpeg',
-						0.8,
+						0.92,
 					)
 				}
 			}
@@ -223,6 +243,28 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 		wsRef.current?.send(JSON.stringify({ type: 'audio_end' }))
 	}, [])
 
+	const startRecording = useCallback(() => {
+		const base = displayCanvasRef.current
+		const effect = effectCanvasRef.current
+		if (!base || !effect) return
+		try {
+			if (recordingUrl) {
+				URL.revokeObjectURL(recordingUrl)
+				setRecordingUrl(null)
+			}
+			recorderRef.current.start(base, effect, EFFECT_FILTER_ID, audioStreamRef.current)
+			setRecording(true)
+		} catch (err) {
+			setError(err instanceof Error ? `Couldn't start recording: ${err.message}` : "Couldn't start recording.")
+		}
+	}, [recordingUrl])
+
+	const stopRecording = useCallback(async () => {
+		const blob = await recorderRef.current.stop()
+		setRecording(false)
+		if (blob) setRecordingUrl(URL.createObjectURL(blob))
+	}, [])
+
 	const sendText = useCallback(() => {
 		const text = textInput.trim()
 		if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
@@ -249,6 +291,21 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 				flexDirection: 'column',
 			}}
 		>
+			{/* GPU turbulence field: continuously churns the generated effect layer with zero regeneration cost */}
+			<svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden>
+				<filter id="effect-turbulence" x="-10%" y="-10%" width="120%" height="120%">
+					<feTurbulence type="fractalNoise" baseFrequency="0.006 0.010" numOctaves={2} seed={7} result="noise">
+						<animate
+							attributeName="baseFrequency"
+							dur="16s"
+							values="0.006 0.010; 0.009 0.014; 0.006 0.010"
+							repeatCount="indefinite"
+						/>
+					</feTurbulence>
+					<feDisplacementMap in="SourceGraphic" in2="noise" scale={12} xChannelSelector="R" yChannelSelector="G" />
+				</filter>
+			</svg>
+
 			<div
 				style={{
 					display: 'flex',
@@ -336,7 +393,9 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 						<div
 							style={{
 								width: '100%',
-								aspectRatio: '4 / 3',
+								maxHeight: '68vh',
+								aspectRatio: frameAspect,
+								margin: '0 auto',
 								borderRadius: radius.lg,
 								overflow: 'hidden',
 								border: `1px solid ${colors.borderStrong}`,
@@ -345,8 +404,22 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 								position: 'relative',
 							}}
 						>
-							<canvas ref={displayCanvasRef} width={960} height={720} style={{ width: '100%', height: '100%' }} />
-							{!hasLiveFrame && (
+							<canvas
+								ref={displayCanvasRef}
+								style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+							/>
+							<canvas
+								ref={effectCanvasRef}
+								style={{
+									position: 'absolute',
+									inset: 0,
+									width: '100%',
+									height: '100%',
+									filter: hasEffect ? 'url(#effect-turbulence)' : 'none',
+									willChange: 'filter',
+								}}
+							/>
+							{!hasLiveFrame && !hasEffect && (
 								<div
 									style={{
 										position: 'absolute',
@@ -363,6 +436,30 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 									Waiting for the camera device to join and start streaming…
 								</div>
 							)}
+							{recording && (
+								<div
+									style={{
+										position: 'absolute',
+										top: 10,
+										left: 10,
+										display: 'flex',
+										alignItems: 'center',
+										gap: 6,
+										padding: '4px 9px',
+										borderRadius: radius.pill,
+										background: 'rgba(9,9,11,0.72)',
+										border: `1px solid ${colors.critical}`,
+										fontSize: 10.5,
+										fontFamily: font.mono,
+										letterSpacing: '0.08em',
+										color: colors.white,
+										pointerEvents: 'none',
+									}}
+								>
+									<span style={{ width: 8, height: 8, borderRadius: radius.pill, background: colors.critical }} />
+									REC
+								</div>
+							)}
 						</div>
 
 						<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -377,6 +474,27 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 							>
 								{micOn ? <MicOff size={16} /> : <Mic size={16} />}
 							</button>
+							<button
+								onClick={recording ? stopRecording : startRecording}
+								style={{
+									...roundIconStyle,
+									background: recording ? colors.critical : colors.surface3,
+									color: recording ? colors.white : colors.textDim,
+								}}
+								title={recording ? 'Stop recording' : 'Record the live scene'}
+							>
+								{recording ? <Square size={14} fill="currentColor" /> : <Circle size={15} fill="currentColor" />}
+							</button>
+							{recordingUrl && !recording && (
+								<a
+									href={recordingUrl}
+									download={`arena-live-${Date.now()}.webm`}
+									title="Download recording"
+									style={{ ...roundIconStyle, background: colors.clear, color: colors.black, textDecoration: 'none' }}
+								>
+									<Download size={15} />
+								</a>
+							)}
 							<input
 								value={textInput}
 								onChange={(e) => setTextInput(e.target.value)}

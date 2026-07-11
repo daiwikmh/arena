@@ -31,7 +31,13 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 	const captureCanvasRef = useRef<HTMLCanvasElement>(null)
 	const displayCanvasRef = useRef<HTMLCanvasElement>(null)
 	const liveFrameImgRef = useRef<HTMLImageElement>(new Image())
-	const effectImgRef = useRef<HTMLImageElement>(new Image())
+	const effectImgRef = useRef<HTMLImageElement>(
+		(() => {
+			const img = new Image()
+			img.crossOrigin = 'anonymous'
+			return img
+		})(),
+	)
 	const maskCanvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'))
 	const effectMaskReadyRef = useRef(false)
 	const audioCtxRef = useRef<AudioContext | null>(null)
@@ -47,13 +53,18 @@ export default function LiveCamera({ projectId }: LiveCameraProps) {
 		typeof window !== 'undefined' ? `${window.location.origin}/live/${projectId}?role=camera` : ''
 
 	const buildEffectMask = useCallback((canvas: HTMLCanvasElement) => {
-		effectMaskReadyRef.current = computeEffectMask(
-			liveFrameImgRef.current,
-			effectImgRef.current,
-			maskCanvasRef.current,
-			canvas.width,
-			canvas.height,
-		)
+		try {
+			effectMaskReadyRef.current = computeEffectMask(
+				liveFrameImgRef.current,
+				effectImgRef.current,
+				maskCanvasRef.current,
+				canvas.width,
+				canvas.height,
+			)
+		} catch (err) {
+			effectMaskReadyRef.current = false
+			setError(err instanceof Error ? `Couldn't display the effect: ${err.message}` : "Couldn't display the effect.")
+		}
 	}, [])
 
 	const drawDisplay = useCallback(() => {
